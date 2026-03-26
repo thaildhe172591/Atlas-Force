@@ -123,7 +123,7 @@ npx atlas-forge init --agent auto
 Expected outcome:
 - `.atlasforge/` created
 - default `config.yaml` available
-- profile-specific root guidance (`CLAUDE.md`/`GEMINI.md`/`AGENTS.md`) auto-created when missing
+- shared `AGENTS.md` plus profile-specific root guidance (`CLAUDE.md`/`GEMINI.md`/`CODEX.md`) auto-created when missing
 - `.atlasforge/skills/` + `.atlasforge/workflows/` seeded when missing
 
 Optional re-sync (non-destructive):

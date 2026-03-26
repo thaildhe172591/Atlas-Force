@@ -70,7 +70,7 @@ Keep the output concise and publish-ready.
 
 ## One-Screen Flow
 
-- `init --agent codex` creates `AGENTS.md`, `.atlasforge/skills/`, and `.atlasforge/workflows/` without overwriting user files.
+- `init --agent codex` creates shared `AGENTS.md`, `CODEX.md`, `.atlasforge/skills/`, and `.atlasforge/workflows/` without overwriting user files.
 - Use `status` and `search` before coding.
 - Capture reusable implementation details with `code-pattern`.
 - Finish with `doctor` and `close`.

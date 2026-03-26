@@ -21,6 +21,7 @@ describe('Init bootstrap + promotion migration', () => {
     it('creates profile-specific root guidance and core assets on fresh init', async () => {
         const { bootstrap, agent_profile } = await AtlasForge.initWithReport(testRoot, 'gemini');
 
+        expect(fs.existsSync(path.join(testRoot, 'AGENTS.md'))).toBe(true);
         expect(fs.existsSync(path.join(testRoot, 'GEMINI.md'))).toBe(true);
         expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'skills', 'clean-code.md'))).toBe(true);
         expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'skills', 'brainstorming.md'))).toBe(true);
@@ -28,6 +29,7 @@ describe('Init bootstrap + promotion migration', () => {
         expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'workflows', 'task-lifecycle.md'))).toBe(true);
         expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'workflows', 'quickstart-gemini.md'))).toBe(true);
 
+        expect(bootstrap.created).toContain('AGENTS.md');
         expect(bootstrap.created).toContain('GEMINI.md');
         expect(bootstrap.created).toContain('.atlasforge/skills/clean-code.md');
         expect(bootstrap.created).toContain('.atlasforge/skills/brainstorming.md');
@@ -43,14 +45,18 @@ describe('Init bootstrap + promotion migration', () => {
     it('does not overwrite existing agent bootstrap files', async () => {
         await AtlasForge.initWithReport(testRoot);
 
+        const sharedPath = path.join(testRoot, 'AGENTS.md');
         const geminiPath = path.join(testRoot, 'GEMINI.md');
         const cleanCodePath = path.join(testRoot, '.atlasforge', 'skills', 'clean-code.md');
+        fs.writeFileSync(sharedPath, '# custom shared\n', 'utf-8');
         fs.writeFileSync(geminiPath, '# custom gemini\n', 'utf-8');
         fs.writeFileSync(cleanCodePath, '# custom clean-code\n', 'utf-8');
 
         const { bootstrap } = await AtlasForge.initWithReport(testRoot);
+        expect(bootstrap.skipped).toContain('AGENTS.md');
         expect(bootstrap.skipped).toContain('GEMINI.md');
         expect(bootstrap.skipped).toContain('.atlasforge/skills/clean-code.md');
+        expect(fs.readFileSync(sharedPath, 'utf-8')).toBe('# custom shared\n');
         expect(fs.readFileSync(geminiPath, 'utf-8')).toBe('# custom gemini\n');
         expect(fs.readFileSync(cleanCodePath, 'utf-8')).toBe('# custom clean-code\n');
     });
@@ -74,12 +80,12 @@ describe('Init bootstrap + promotion migration', () => {
 
     it('supports optimize dry-run without writing missing files', async () => {
         await AtlasForge.initWithReport(testRoot, 'codex');
-        fs.rmSync(path.join(testRoot, 'AGENTS.md'));
+        fs.rmSync(path.join(testRoot, 'CODEX.md'));
 
         const { bootstrap, agent_profile } = await AtlasForge.optimizeWithReport(testRoot, 'codex', true);
         expect(agent_profile.applied_agent).toBe('codex');
         expect(bootstrap.dry_run).toBe(true);
-        expect(bootstrap.created).toContain('AGENTS.md');
-        expect(fs.existsSync(path.join(testRoot, 'AGENTS.md'))).toBe(false);
+        expect(bootstrap.created).toContain('CODEX.md');
+        expect(fs.existsSync(path.join(testRoot, 'CODEX.md'))).toBe(false);
     });
 });

@@ -1,16 +1,16 @@
-# GEMINI.md - Atlas Forge Agent Protocol
+# CODEX.md - Atlas Forge Codex Workflow
 
-Use Atlas Forge as the memory system of record for this repository.
+Codex should use Atlas Forge CLI in JSON mode.
 
-## Required workflow
+## Task lifecycle
 1. `atlas-forge status --json`
 2. `atlas-forge search "<query>" --json`
 3. `atlas-forge start "<task summary>" --json`
-4. `atlas-forge add --type decision --title "<title>" --summary "<summary>" --json`
+4. `atlas-forge add --type code-pattern --title "<title>" --summary "<summary>" --json`
 5. `atlas-forge doctor --json`
 6. `atlas-forge close "<outcome summary>" --json`
 
 ## Notes
 - Use `AGENTS.md` for shared repo rules.
 - Prefer `--json` so automation can parse results safely.
-- For cross-agent standards, read `AI_PROTOCOL.md`.
+- Run `atlas-forge verify --json` when you need setup/readiness checks.

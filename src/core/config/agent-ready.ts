@@ -10,6 +10,34 @@ export function isAgentSelection(value: string): value is AgentSelection {
     return value === 'auto' || value === 'claude' || value === 'gemini' || value === 'codex';
 }
 
+const SHARED_ROOT_GUIDANCE = {
+    path: 'AGENTS.md',
+    content: `# AGENTS.md - Atlas Forge Shared Guidance
+
+Use Atlas Forge as the shared memory workflow for this repository.
+
+## Common rules
+- Run \`status\` or \`af_status\` before editing.
+- Search existing memory before making changes.
+- Capture important decisions with \`add\`.
+- Run \`doctor\` before \`close\`.
+- Prefer \`--json\` for machine-readable output.
+
+## Agent files
+- Claude: \`CLAUDE.md\`
+- Gemini: \`GEMINI.md\`
+- Codex: \`CODEX.md\`
+
+## Shared workflow
+1. \`status\`
+2. \`search\`
+3. \`start\`
+4. \`add\`
+5. \`doctor\`
+6. \`close\`
+`,
+};
+
 const ROOT_GUIDANCE_TEMPLATES: Record<AgentKind, { path: string; content: string }> = {
     claude: {
         path: 'CLAUDE.md',
@@ -46,8 +74,8 @@ Use Atlas Forge as the memory system of record for this repository.
 `,
     },
     codex: {
-        path: 'AGENTS.md',
-        content: `# AGENTS.md - Atlas Forge Codex Workflow
+        path: 'CODEX.md',
+        content: `# CODEX.md - Atlas Forge Codex Workflow
 
 Codex should use Atlas Forge CLI in JSON mode.
 
@@ -158,8 +186,12 @@ function collectSignals(root: string): SignalMap {
     }
 
     if (hasFile(root, 'AGENTS.md')) {
-        codexScore += 3;
         signals.push('root:AGENTS.md');
+    }
+
+    if (hasFile(root, 'CODEX.md')) {
+        codexScore += 3;
+        signals.push('root:CODEX.md');
     }
     if (hasFile(root, '.codex')) {
         codexScore += 2;
@@ -286,9 +318,11 @@ function writeIfMissing(absolutePath: string, content: string, report: InitBoots
 }
 
 function requiredArtifactPaths(appliedAgent: AgentKind): string[] {
+    const shared = SHARED_ROOT_GUIDANCE.path;
     const rootGuidance = ROOT_GUIDANCE_TEMPLATES[appliedAgent].path;
     const quickstart = `.atlasforge/workflows/quickstart-${appliedAgent}.md`;
     return [
+        shared,
         rootGuidance,
         '.atlasforge/skills/clean-code.md',
         '.atlasforge/skills/brainstorming.md',
@@ -306,6 +340,8 @@ export function bootstrapAdaptiveArtifacts(
     const dryRun = Boolean(options.dryRun);
     const agentProfile = detectAgentProfile(root, requestedAgent);
     const report: InitBootstrapReport = { created: [], skipped: [], dry_run: dryRun };
+
+    writeIfMissing(path.join(root, SHARED_ROOT_GUIDANCE.path), SHARED_ROOT_GUIDANCE.content, report, SHARED_ROOT_GUIDANCE.path, dryRun);
 
     const rootGuidance = ROOT_GUIDANCE_TEMPLATES[agentProfile.applied_agent];
     writeIfMissing(path.join(root, rootGuidance.path), rootGuidance.content, report, rootGuidance.path, dryRun);
