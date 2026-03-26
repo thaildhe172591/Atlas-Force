@@ -21,7 +21,7 @@ export async function promoteOperation(
     const skipped: MemoryEntry[] = [];
     const reason_map: Record<string, string> = {};
 
-    const failedEntryIds = new Set(doctor.checks.filter((c: any) => c.status === 'fail').map((c: any) => c.entry_id));
+    const failedEntryIds = new Set(doctor.checks.filter((c) => c.status === 'fail').map((c) => c.entry_id));
 
     for (const entry of toPromote) {
         if (failedEntryIds.has(entry.record_id)) {

@@ -1,134 +1,103 @@
-# ⚒️ Atlas Forge
+# Atlas Forge
 
-**The High-Performance Knowledge Orchestration Engine for AI Agents.**
-
-Atlas Forge is a developer-centric, local-first memory layer designed to give AI agents a persistent, structured, and human-readable memory of your codebase. It bridges the gap between deep technical decisions and the agents that implement them.
+Local-first memory orchestration for AI agents working in real codebases.
 
 [![NPM Version](https://img.shields.io/npm/v/@thaild12042003/atlas-forge.svg?style=flat-square&color=blue)](https://www.npmjs.com/package/@thaild12042003/atlas-forge)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18-green.svg?style=flat-square)](https://nodejs.org)
 
----
+## Why Atlas Forge
 
-## 🗺️ Logic & Architecture
+Atlas Forge gives AI agents a persistent, inspectable memory layer inside your repository.
 
-### System Architecture
-Atlas Forge follows a strict 4-layer separation of concerns to ensure atomic I/O and predictable agent behavior.
+- Local data in `.atlasforge/`
+- JSONL storage for transparency
+- Structured lifecycle: `start -> add -> doctor -> close`
+- Dual interface: CLI and MCP
 
-```mermaid
-graph TD
-    subgraph "Interface Layer"
-        CLI[CLI Command]
-        MCP[MCP Server]
-    end
+## Install
 
-    subgraph "Core Engine"
-        F[Facade] --> OPS[Operations]
-        OPS --> ST[Staging Store]
-        OPS --> CA[Canonical Store]
-    end
-
-    subgraph "Storage Layer"
-        ST --> FSM[FileSystemManager]
-        CA --> FSM
-        FSM --> JSONL[".atlasforge/*.jsonl"]
-    end
-
-    CLI --> F
-    MCP --> F
-```
-
-### The "Forge Cycle"
-How knowledge moves from a thought to a permanent project memory.
-
-```mermaid
-sequenceDiagram
-    participant Agent
-    participant Staging
-    participant Doctor
-    participant Canonical
-
-    Agent->>Staging: add_memory (Draft)
-    Note over Staging: JSONL Append
-    Agent->>Doctor: close_task (Trigger)
-    Doctor->>Staging: Scan & Validate
-    alt Passes Diagnostics
-        Doctor->>Canonical: Promote Entries
-        Doctor->>Staging: Clear Task Context
-        Canonical-->>Agent: Success (Verified Knowledge)
-    else Fails
-        Doctor-->>Agent: Failure (Returns Warn/Fail map)
-    end
-```
-
----
-
-Generic vector databases are often "black boxes" for agents. Atlas Forge is different:
-- **🗂️ Local-First**: Knowledge stays in your repo under `.atlasforge/`.
-- **📖 Human-Readable**: All memories are stored as valid JSONL. You own your data.
-- **⚡ Atomic & Fast**: Optimized synchronous I/O designed for high-concurrency agent workflows.
-- **🛡️ Quality Controlled**: Built-in "Doctor" diagnostics to prevent memory corruption.
-
----
-
-## ⏱️ The First 5 Minutes
-
-### 1. Installation
 ```bash
 npm install @thaild12042003/atlas-forge
 ```
 
-### 2. Initialize the Forge
+## 60-second Quick Start
+
 ```bash
 npx atlas-forge init
-```
-*Creates the `.atlasforge/` structure and a default `config.yaml`.*
-
-### 3. Start your first session
-```bash
-npx atlas-forge start "Refactoring user authentication"
-```
-
-### 4. Capture Knowledge
-Whenever you (or your agent) make a technical decision:
-```bash
-npx atlas-forge add --type decision --title "JWT over Session" --summary "Decided to use JWT for stateless scalability"
+npx atlas-forge start "Refactor auth module"
+npx atlas-forge add --type decision --title "JWT over session" --summary "Stateless scaling requirement"
+npx atlas-forge doctor
+npx atlas-forge close "Refactor complete"
+npx atlas-forge status
 ```
 
-### 5. Finalize & Persist
-```bash
-npx atlas-forge close "Refactoring complete"
-```
+## CLI Surface
 
----
+All commands support `--json` for machine-readable automation.
 
-## 🤖 AI Agent Integration (MCP)
+| Command | Purpose |
+|---|---|
+| `atlas-forge init` | Initialize `.atlasforge` structure |
+| `atlas-forge start <summary>` | Start a task session |
+| `atlas-forge add --title --summary [--type]` | Add memory to staging |
+| `atlas-forge doctor` | Run diagnostics on staged entries |
+| `atlas-forge close <summary>` | Close active task and promote |
+| `atlas-forge search <query> [--limit]` | Search canonical memory |
+| `atlas-forge status` | Show snapshot counts + active session |
+| `atlas-forge verify` | Verify workspace readiness |
 
-Atlas Forge is natively compatible with the **Model Context Protocol (MCP)**. This allows agents like Claude Desktop or Cursor to **automatically** read and write to your project memory.
+### Supported Memory Types
 
-### Quick Setup for Claude Desktop
-Add this to your `claude_desktop_config.json`:
+`onboarding`, `architecture`, `module`, `decision`, `bugfix`, `incident`, `task-note`, `policy`, `convention`, `code-pattern`
+
+## MCP Setup (Claude Desktop / Cursor)
+
+Use the published npm package:
 
 ```json
 {
   "mcpServers": {
     "atlas-forge": {
       "command": "npx",
-      "args": ["-y", "@thaild12042003/atlas-forge-mcp"]
+      "args": ["-y", "@thaild12042003/atlas-forge", "atlas-forge-mcp"]
     }
   }
 }
 ```
 
-> [!TIP]
-> Use [AI_PROTOCOL.md](file:///d:/DevProjects/Atlas%20Forge/AI_PROTOCOL.md) for advanced cross-agent orchestration rules.
+Alternative (if your MCP host supports direct binary execution):
 
----
+```json
+{
+  "mcpServers": {
+    "atlas-forge": {
+      "command": "atlas-forge-mcp",
+      "args": []
+    }
+  }
+}
+```
 
-## 📚 Further Reading
-- [Detailed Tutorial](file:///d:/DevProjects/Atlas%20Forge/TUTORIAL.md): Best practices for memory management.
-- [AI Protocol](file:///d:/DevProjects/Atlas%20Forge/AI_PROTOCOL.md): How to sync multiple AI models.
-- [Architecture](file:///d:/DevProjects/Atlas%20Forge/README.md#architecture): In-depth look at stores and operations.
+### MCP Verification
 
-## 📄 License
-MIT © 2026 [thaild12042003](https://github.com/thaildhe172591)
+1. Start MCP host with the config above.
+2. Confirm tools are listed:
+   `af_init`, `af_start_task`, `af_add_memory`, `af_search`, `af_close_task`, `af_status`.
+3. Run `af_init` then `af_status` in a test workspace.
+
+## Guides
+
+- AI protocol: [AI_PROTOCOL.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/AI_PROTOCOL.md)
+- Claude: [docs/agents/claude.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/docs/agents/claude.md)
+- Cursor: [docs/agents/cursor.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/docs/agents/cursor.md)
+- Codex: [docs/agents/codex.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/docs/agents/codex.md)
+- Gemini: [docs/agents/gemini.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/docs/agents/gemini.md)
+- Antigravity: [docs/agents/antigravity.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/docs/agents/antigravity.md)
+- Agent support matrix: [docs/agents/support-matrix.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/docs/agents/support-matrix.md)
+- Release checklist: [docs/release-checklist.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/docs/release-checklist.md)
+- Changelog: [CHANGELOG.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/CHANGELOG.md)
+
+## License
+
+MIT © 2026 thaild12042003

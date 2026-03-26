@@ -17,7 +17,7 @@ export async function taskCloseOperation(
     const promoteMode = o.promote_mode || configDefaultMode;
 
     // Create the task-summary entry in staging
-    const entry = await addOperation({
+    await addOperation({
         memory_type: o.memory_type || 'task-note',
         title: session.title,
         summary: o.summary,
@@ -30,9 +30,8 @@ export async function taskCloseOperation(
 
     let promoted: MemoryEntry[] = [];
     let skipped: MemoryEntry[] = [];
-    
-    // Attempt promotion for all staged entries.
-    // Partial promotion will ensure that only valid entries (like the new summary) move forward.
+
+    // Attempt promotion for all staged entries. Invalid ones are skipped with reason_map entries.
     const res = await promoteOperation({}, st, ca, fsm, promoteMode, doctor);
     promoted = res.promoted;
     skipped = res.skipped;

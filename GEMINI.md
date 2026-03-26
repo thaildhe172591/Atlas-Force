@@ -1,11 +1,18 @@
 # GEMINI.md - Atlas Forge Memory Protocol
 
-This project uses **Atlas Forge** to maintain persistent context.
+Gemini should use Atlas Forge via CLI with JSON output.
 
-## 🤖 Antigravity Instructions
-- **Active Task**: Always run `npx atlas-forge start "<summary>"` at the beginning of any feature implementation.
-- **Micro-memories**: Use `npx atlas-forge add` to capture technical decisions, module changes, and rationale.
-- **Task Closure**: Always run `npx atlas-forge close "<summary>"` before finishing your turn if a task is complete.
-- **Pre-analysis**: Run `npx atlas-forge search "<query>"` before suggesting architectural changes.
+## Required workflow
 
-Refer to [AI_PROTOCOL.md](file:///d:/DevProjects/Atlas%20Forge/AI_PROTOCOL.md) for universal standards across Claude, Gemini, and Codex.
+1. `atlas-forge status --json`
+2. `atlas-forge search "<query>" --json`
+3. `atlas-forge start "<task summary>" --json`
+4. `atlas-forge add --type decision --title "<title>" --summary "<summary>" --json`
+5. `atlas-forge doctor --json`
+6. `atlas-forge close "<outcome summary>" --json`
+
+## Notes
+
+- If `.atlasforge/` is missing, run `atlas-forge init`.
+- Prefer `--json` so automation can parse results safely.
+- For cross-agent standards, read `AI_PROTOCOL.md`.

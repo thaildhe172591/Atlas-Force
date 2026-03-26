@@ -1,6 +1,6 @@
 {
   "name": "@thaild12042003/atlas-forge",
-  "version": "0.2.3",
+  "version": "0.3.1",
   "description": "A high-performance, local-first knowledge orchestration engine that empowers AI agents with persistent codebase memory using structured JSONL storage.",
   "type": "module",
   "engines": {
@@ -23,16 +23,18 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsup",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "node scripts/run-vitest.mjs run",
+    "test:smoke": "node scripts/run-vitest.mjs run tests/smoke tests/contracts",
+    "test:watch": "node scripts/run-vitest.mjs",
     "dev": "tsx src/cli/bin.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run lint && npm run test && npm run test:smoke && npm run build"
   },
   "keywords": [
     "memory",

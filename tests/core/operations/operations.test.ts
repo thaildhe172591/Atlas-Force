@@ -24,7 +24,7 @@ describe('Operations Layer', () => {
 
     it('addOperation should generate IDs and auto-enrich', async () => {
         const entry = await addOperation({
-            memory_type: 'decision',
+            memory_type: 'code-pattern',
             title: 'Test',
             summary: 'Test',
             what_changed: 'X',
@@ -35,6 +35,7 @@ describe('Operations Layer', () => {
         expect(entry.record_id).toBeDefined();
         expect(entry.modules).toContain('store'); // inferred from fs.ts
         expect(entry.tags).toContain('store');
+        expect(entry.tags).toContain('code-pattern');
         expect(entry.inferred_fields).toContain('modules');
     });
 

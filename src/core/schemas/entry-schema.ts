@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MEMORY_TYPES } from '../models/states.js';
 
 export const FileEvidenceSchema = z.object({
     type: z.literal('file'),
@@ -27,7 +28,7 @@ export const MemoryEntrySchema = z.object({
     memory_id: z.string(),
     version: z.number().int().positive(),
     supersedes_record_id: z.string().optional(),
-    memory_type: z.enum(['onboarding', 'architecture', 'module', 'decision', 'bugfix', 'incident', 'task-note', 'policy', 'convention']),
+    memory_type: z.enum(MEMORY_TYPES),
     title: z.string().min(1),
     summary: z.string().min(1),
     what_changed: z.string().min(1),

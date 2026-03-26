@@ -1,77 +1,107 @@
-# 📚 Atlas Forge Tutorial: Master Your Agent's Memory
+# Atlas Forge Tutorial
 
-This guide will help you understand the core concepts of knowledge orchestration and how to use Atlas Forge to build a "Titan Brain" for your project.
+This tutorial helps users and agents adopt Atlas Forge in a predictable, production-friendly workflow.
 
----
+## Learning Goals
 
-## 🧠 Core Concepts
+After this guide, you can:
 
-### 1. The Dual-Store System
-Atlas Forge manages knowledge in two stages:
+- initialize a workspace
+- run a complete memory lifecycle
+- debug failed promotions
+- automate with JSON output
 
-```mermaid
-graph LR
-    A[Agent Action] --> B(Staging Store)
-    B --> C{Doctor Check}
-    C -->|Pass| D[(Canonical Store)]
-    C -->|Fail| E[Manual Fix Required]
-    
-    style B fill:#fff4dd,stroke:#d4a017
-    style D fill:#e1f5fe,stroke:#01579b
-```
-Atlas Forge manages knowledge in two stages:
-- **Staging Area**: Where "active" memories live during a task. They are drafts, potentially incomplete or unverified.
-- **Canonical Store**: The "Gold Standard" of knowledge. Only verified, high-quality memories are promoted here.
+## Mental Model
 
-### 2. The Task Session Lifecycle
-A `TaskSession` is a bounded context for work.
-1. **`start`**: Defines what you *intend* to do. It pre-fetches related memories to give you context.
-2. **`add`**: Captures knowledge *during* the work. 
-3. **`close`**: Synthesizes the result, runs the **Doctor** (diagnostics), and promotes staging entries to the Canonical Store.
+Atlas Forge works with two memory zones:
 
----
+- `staging`: draft memories during active work
+- `canonical`: verified memories promoted for reuse
 
-## 🛠️ Best Practices
+Lifecycle:
 
-### When to use `add`?
-Don't record every line of code. Record:
-- **Decisions**: Why did you choose Library A over Library B?
-- **Patterns**: How should a developer implement a new API endpoint in *this* project?
-- **Gotchas**: What caused a bug that took 2 hours to fix? (Prevent the AI from repeating it).
-- **Module Roles**: What is the specific responsibility of a new directory?
+1. `start` task context
+2. `add` decisions/patterns while implementing
+3. `doctor` validate staging quality
+4. `close` promote valid entries
 
-### Memory Types Reference
-| Type | Use Case |
-|------|----------|
-| `decision` | ADRs (Architecture Decision Records) |
-| `module` | Describing new packages or directories |
-| `code-pattern` | Reusable logic templates |
-| `task-note` | General observations during a session |
+## Hands-on Walkthrough
 
----
+### Step 1: Initialize
 
-## 🧪 Advanced Workflows
-
-### Auto-Capture with AI
-If you are using the MCP server, you don't need to manually run `add`. You can simply tell your agent:
-> "Hey, I just implemented the database migration logic. Please add a decision entry to Atlas Forge explaining why we used a separate schema for audit logs."
-
-The Agent will call `af_add_memory` with the correct technical details automatically.
-
-### Searching for Context
-Use `af_search` to find "why" something was done.
 ```bash
-npx atlas-forge search "audit logs"
+npx atlas-forge init
 ```
-Instead of grep-ing through code, you get the **rationale** behind it.
 
----
+Expected outcome:
+- `.atlasforge/` created
+- default `config.yaml` available
 
-## 🚑 Troubleshooting
+### Step 2: Start a Task Session
 
-- **Doctor Failed**: If `close` fails, check the `warn` or `fail` messages. Usually, it's a missing mandatory field or a schema mismatch.
-- **Stale Memories**: If a memory matches an old version of the code, use `npx atlas-forge status` to identify potential stale entries (Feature coming in v0.3.0).
+```bash
+npx atlas-forge start "Implement billing retries"
+```
 
----
+Expected outcome:
+- one active session
+- preflight context loaded when available
 
-Happy Forging! ⚒️🚀
+### Step 3: Capture Knowledge During Work
+
+```bash
+npx atlas-forge add \
+  --type decision \
+  --title "Retry policy" \
+  --summary "Use exponential backoff with jitter"
+```
+
+Use `code-pattern` for reusable templates:
+
+```bash
+npx atlas-forge add \
+  --type code-pattern \
+  --title "Idempotent retry wrapper" \
+  --summary "Safe wrapper for retriable operations"
+```
+
+### Step 4: Validate Before Promotion
+
+```bash
+npx atlas-forge doctor
+```
+
+Expected outcome:
+- diagnostics pass, warn, or fail
+- actionable checks for bad entries
+
+### Step 5: Close and Promote
+
+```bash
+npx atlas-forge close "Billing retry implementation complete"
+```
+
+## Automation Mode (`--json`)
+
+For agents and scripts, always prefer machine-readable responses:
+
+```bash
+npx atlas-forge status --json
+npx atlas-forge search "retry" --json
+npx atlas-forge doctor --json
+```
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `Atlas Forge is not initialized` | missing `.atlasforge` | run `atlas-forge init` |
+| invalid memory type | unsupported `--type` value | use supported types from `README.md` |
+| doctor failures | malformed entry or bad evidence refs | inspect `doctor.checks`, repair entry, rerun |
+| close does not promote expected records | promote mode or failed checks | run `status` + `doctor` to inspect state |
+
+## Next Steps
+
+- Read release gate: `docs/release-checklist.md`
+- Configure MCP: `README.md` MCP section
+- Pick agent-specific guide in `docs/agents/`

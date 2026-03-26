@@ -39,6 +39,13 @@ Thank you for your interest in contributing to Atlas Forge! We are building a hi
 4. Update `package.json` version if it's a major/minor/patch change.
 5. Push to your fork and submit a PR!
 
+## 📦 Release Discipline
+
+- Follow `docs/release-checklist.md` before any npm publish.
+- Keep `CHANGELOG.md` updated for user-visible changes.
+- For local preview/debug of workspace automation scripts, you can use:
+  - `python .agent/scripts/auto_preview.py status`
+
 ## 📄 License
 
 By contributing, you agree that your contributions will be licensed under the **MIT License**.

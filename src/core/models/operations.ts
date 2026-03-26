@@ -80,3 +80,15 @@ export interface SearchOptions {
     limit?: number;
     memory_type?: MemoryType;
 }
+
+export interface VerifyCheck {
+    name: string;
+    status: 'pass' | 'warn' | 'fail';
+    message: string;
+}
+
+export interface VerifyResult {
+    ok: boolean;
+    root: string;
+    checks: VerifyCheck[];
+}

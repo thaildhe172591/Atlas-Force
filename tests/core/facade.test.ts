@@ -41,14 +41,14 @@ describe('Facade: AtlasForge Smoke Test', () => {
             why_it_matters: 'Enables task persistence'
         });
 
-        // 5. Close task (creates task entry and promotes it)
+        // 5. Close task (promotes all valid staged entries in direct mode)
         const close = await forge.taskClose({ summary: 'Facade finished', promote_mode: 'direct' });
-        expect(close.promoted_entries).toHaveLength(1);
+        expect(close.promoted_entries).toHaveLength(2);
 
         // 6. Verify status
         const status = await forge.status();
-        expect(status.snapshot.canonical_count).toBe(1);
-        expect(status.snapshot.staging_count).toBe(1); // manual entry remains in staging
+        expect(status.snapshot.canonical_count).toBe(2);
+        expect(status.snapshot.staging_count).toBe(0);
 
         // 7. Search (searches canonical)
         const search = await forge.search({ query: 'Facade' });

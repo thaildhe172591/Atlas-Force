@@ -1,4 +1,3 @@
-import * as path from 'node:path';
 import * as yaml from 'yaml';
 import { FileSystemManager } from './store/fs.js';
 import { StagingStore } from './store/staging.js';
@@ -7,11 +6,13 @@ import { SessionStore } from './store/sessions.js';
 import { ConfigLoader, DEFAULTS } from './config/index.js';
 
 import { addOperation } from './operations/add-memory.js';
+import { doctorOperation } from './operations/doctor.js';
 import { statusOperation } from './operations/status.js';
 import { searchOperation } from './operations/retrieval.js';
+import { verifyOperation } from './operations/verify.js';
 import { taskStartOperation } from './orchestrator/task-start.js';
 import { taskCloseOperation } from './orchestrator/task-close.js';
-import type { AddMemoryOptions, TaskStartOptions, TaskCloseOptions, SearchOptions, AtlasForgeConfig } from './models/index.js';
+import type { AddMemoryOptions, TaskStartOptions, TaskCloseOptions, SearchOptions, AtlasForgeConfig, DoctorOptions } from './models/index.js';
 
 export class AtlasForge {
     private constructor(
@@ -40,6 +41,8 @@ export class AtlasForge {
         return new AtlasForge(config, fsm, new StagingStore(fsm), new CanonicalStore(fsm), new SessionStore(fsm));
     }
 
+    static async verify(root: string) { return verifyOperation(root); }
+    async doctor(options: DoctorOptions = {}) { return doctorOperation(options, this.staging, this.fsm); }
     async add(o: AddMemoryOptions) { return addOperation(o, this.staging); }
     async search(o: SearchOptions) { return searchOperation(o, this.canonical); }
     async status() { return statusOperation(this.staging, this.canonical, this.fsm); }

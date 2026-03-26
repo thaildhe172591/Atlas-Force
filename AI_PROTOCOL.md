@@ -1,57 +1,59 @@
-# 🤖 Atlas Forge: Universal AI Agent Protocol (v0.2.2)
+# Atlas Forge: Universal AI Agent Protocol (v0.3.0)
 
-This document defines the **Standard Operating Procedure (SOP)** for any AI Agent (Claude, Gemini, Cursor, Antigravity) interacting with this codebase. Compliance is MANDATORY to maintain project cohesion.
+This protocol defines how Claude, Cursor, Codex, Gemini, and Antigravity should work with Atlas Forge.
 
----
+## Core rules
 
-## 🧠 The "Titan Brain" Philosophy
-Atlas Forge is NOT just a log; it is the **Single Source of Truth** for architectural rationale. 
-- **Agents MUST NOT** make significant design changes without consulting `af_search`.
-- **Agents MUST** record the *rationale* (the "Why") behind every implementation.
+- Treat `.atlasforge/` as the project memory source of truth.
+- Always search existing memory before large changes.
+- Always close the task with a summary when implementation is done.
+- Prefer machine-readable output (`--json`) for automation.
 
----
+## Standard command workflow (CLI-first)
 
-## 🛠️ Model-Specific Directives
+```bash
+atlas-forge status --json
+atlas-forge search "<query>" --json
+atlas-forge start "<task summary>" --json
+atlas-forge add --type decision --title "<title>" --summary "<summary>" --json
+atlas-forge doctor --json
+atlas-forge close "<outcome summary>" --json
+```
 
-### 1. Claude (Anthropic / Cursor / IDEs)
-- **Interface**: Model Context Protocol (MCP).
-- **Tooling**: Use `af_search` for context and `af_add_memory` for every major code change.
-- **Goal**: Maintain 100% parity between code state and knowledge store.
+## MCP workflow (Claude/Cursor)
 
-### 2. Gemini & Antigravity (Google)
-- **Interface**: Direct File Access / CLI.
-- **Instruction**: Read `.atlasforge/canonical/canonical.jsonl` at session start.
-- **Goal**: Serve as the "Forge Master" ensuring all staging memories are promoted correctly via `af_close_task`.
+Required tools:
+- `af_init`
+- `af_start_task`
+- `af_add_memory`
+- `af_search`
+- `af_close_task`
+- `af_status`
 
-### 3. Codex / GitHub Copilot
-- **Instruction**: Use the `@.atlasforge` reference to ground suggestions in the project's established memory.
+Recommended sequence:
+1. `af_status`
+2. `af_search`
+3. `af_start_task`
+4. `af_add_memory` during implementation milestones
+5. `af_close_task` on completion
 
----
+## Supported memory types
 
-## 📋 Standard Workflow Checklist
+- `onboarding`
+- `architecture`
+- `module`
+- `decision`
+- `bugfix`
+- `incident`
+- `task-note`
+- `policy`
+- `convention`
+- `code-pattern`
 
-### Phase A: Discovery (MANDATORY)
-- [ ] Call `af_search` with keywords about the task.
-- [ ] Call `af_status` to check for active sessions or pending staging memories.
+## Agent-specific guides
 
-### Phase B: Implementation (AUTO)
-- [ ] If a design choice is made (e.g., opting for a specific library or pattern), call `af_add_memory --type decision`.
-- [ ] If a new directory structure is created, call `af_add_memory --type module`.
-
-### Phase C: Finalization (MANDATORY)
-- [ ] Call `af_close_task` with a comprehensive summary of accomplishments.
-- [ ] Verify that the "Doctor" diagnostics pass.
-
----
-
-## 🏷️ Memory Type Standard
-| Type | Use Case |
-|------|----------|
-| `decision` | Rationale for logic, libraries, or architecture. |
-| `module` | Description of a component's responsibility. |
-| `bugfix` | Root cause analysis and prevention strategy. |
-| `code-pattern` | Template logic for future reuse. |
-
----
-
-*Atlas Forge ensures that knowledge outlives the Chat Session. Forge well.*
+- Claude: `docs/agents/claude.md`
+- Cursor: `docs/agents/cursor.md`
+- Codex: `docs/agents/codex.md`
+- Gemini: `docs/agents/gemini.md`
+- Antigravity: `docs/agents/antigravity.md`
