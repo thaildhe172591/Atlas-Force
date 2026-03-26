@@ -46,6 +46,72 @@ flowchart LR
 | Gemini | `atlas-forge init --agent gemini --json` | `optimize --agent gemini --json` | CLI-first, profile-specific guidance files |
 | Antigravity | `atlas-forge init --agent auto --json` | `doctor` before `close` | Orchestrated CLI workflow with promotion discipline |
 
+## Prompt Templates
+
+Use these prompts to get consistent, high-signal output from Codex or other agents:
+
+### 1) Repo Scan
+
+```text
+/init
+Scan the repo before changing code.
+Return:
+1. architecture summary
+2. main entrypoints and scripts
+3. config and environment files
+4. top technical risks
+5. a short implementation plan
+Do not edit files yet.
+```
+
+### 2) Bug Fix
+
+```text
+Use Atlas Forge.
+Workflow:
+status -> search -> start -> fix -> add memory -> doctor -> close
+First identify the root cause, then patch the minimum safe change.
+Run the relevant tests before closing.
+```
+
+### 3) Feature Work
+
+```text
+Use Atlas Forge for this feature.
+Start by checking status and search.
+Then propose the smallest implementation plan that preserves existing behavior.
+Record key decisions with code-pattern memory entries.
+Finish with doctor and close.
+```
+
+### 4) Release / Polish
+
+```text
+Use Atlas Forge in release mode.
+Check status, verify, and existing docs first.
+Improve user-facing guidance, examples, and prompts without changing core behavior.
+Keep the output concise and publish-ready.
+```
+
+## Skill Combos
+
+Atlas Forge works best when paired with a focused skill. Think of it like this:
+
+| Task type | Good skill combo | Why it helps |
+|---|---|---|
+| New feature | `brainstorming` + `writing-plans` | Forces a clean design first, then turns it into steps |
+| Bug fix | `systematic-debugging` + `verification-before-completion` | Finds the root cause and proves the fix before closing |
+| Publish/release | `verification-before-completion` + `git-ops-pro` | Keeps the release clean and evidence-backed |
+| Docs polish | `documentation-templates` + `clean-code` | Makes docs shorter, clearer, and easier to scan |
+
+Example prompt:
+
+```text
+Use Atlas Forge with brainstorming and writing-plans.
+First inspect the repo, then propose 2-3 approaches for this feature, wait for approval, and only then implement.
+Track decisions in Atlas Forge, run doctor before close, and keep the output concise.
+```
+
 ## Hands-on Walkthrough
 
 ### Step 1: Initialize
@@ -141,3 +207,4 @@ Note: new workspaces default to `promote_mode: direct`.
 - Read release gate: `docs/release-checklist.md`
 - Configure MCP: `README.md` MCP section
 - Pick agent-specific guide in `docs/agents/`
+- Copy a starting prompt from `docs/agents/prompt-kit.md`

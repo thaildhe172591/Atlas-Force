@@ -16,6 +16,12 @@ Then use:
 5. `af_add_memory`
 6. `af_close_task`
 
+## Best Skill Stack
+
+- `brainstorming` for layout, workflow, or feature decisions.
+- `documentation-templates` when you need docs that stay scannable in the IDE.
+- `verification-before-completion` before you mark a change ready.
+
 ## One-Screen Flow
 
 - `af_init` when the workspace is new.

@@ -12,6 +12,12 @@ atlas-forge doctor --json
 atlas-forge close "<outcome summary>" --json
 ```
 
+## Best Skill Stack
+
+- `writing-plans` for feature work that needs clear structure first.
+- `clean-code` when you want the smallest maintainable change.
+- `verification-before-completion` before finalizing or publishing.
+
 ## One-Screen Flow
 
 - Use `decision` for architecture tradeoffs.

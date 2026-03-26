@@ -10,6 +10,12 @@
 6. `atlas-forge doctor --json`
 7. `atlas-forge close "<outcome summary>" --json`
 
+## Best Skill Stack
+
+- `brainstorming` for task framing before implementation starts.
+- `workflow-plan` for stepwise orchestration of larger work.
+- `verification-before-completion` before closing long-running tasks.
+
 ## One-Screen Flow
 
 - Use `doctor` before `close` on long-running tasks.

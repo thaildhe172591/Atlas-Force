@@ -6,6 +6,15 @@ Local-first memory orchestration for AI agents working in real codebases.
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D20-green.svg?style=flat-square)](https://nodejs.org)
 
+## Start Here
+
+| If you want to... | Use this |
+|---|---|
+| Set up a new repo fast | `npx atlas-forge init --agent auto` |
+| Work in the terminal with Codex or Gemini | `npx atlas-forge ... --json` |
+| Use Claude or Cursor inside an IDE | MCP with `af_*` tools |
+| Get ready-made prompts | [docs/agents/prompt-kit.md](docs/agents/prompt-kit.md) |
+
 ## Why Atlas Forge
 
 Atlas Forge gives AI agents a persistent, inspectable memory layer inside your repository.
@@ -136,6 +145,7 @@ Alternative (if your MCP host supports direct binary execution):
 - Codex: [docs/agents/codex.md](docs/agents/codex.md)
 - Gemini: [docs/agents/gemini.md](docs/agents/gemini.md)
 - Antigravity: [docs/agents/antigravity.md](docs/agents/antigravity.md)
+- Prompt kit: [docs/agents/prompt-kit.md](docs/agents/prompt-kit.md)
 - Agent support matrix: [docs/agents/support-matrix.md](docs/agents/support-matrix.md)
 - Release checklist: [docs/release-checklist.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/docs/release-checklist.md)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)

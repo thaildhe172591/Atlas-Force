@@ -24,6 +24,12 @@ Then run:
 5. `af_add_memory`
 6. `af_close_task`
 
+## Best Skill Stack
+
+- `brainstorming` when the task needs design or trade-off choices.
+- `systematic-debugging` when the flow is blocked by a bug or failing test.
+- `verification-before-completion` before saying the task is done.
+
 ## One-Screen Flow
 
 - Start with `af_init` in a fresh workspace.
