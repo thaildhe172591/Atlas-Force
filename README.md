@@ -46,6 +46,14 @@ flowchart LR
 npm install @thaild12042003/atlas-forge
 ```
 
+## Recommended Setup
+
+| Scenario | Best choice | Why |
+|---|---|---|
+| Team repo / CI | `npm i -D @thaild12042003/atlas-forge` | Locks the repo to one version and keeps `verify`/build reproducible |
+| Daily local work | `npx atlas-forge ...` | Uses the repo version without a global install |
+| Quick tryout | `npm i -g @thaild12042003/atlas-forge` | Fastest for experimenting across many repos |
+
 ## 60-second Quick Start
 
 ```bash
