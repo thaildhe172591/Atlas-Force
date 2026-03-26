@@ -1,5 +1,5 @@
 {
-  "name": "@thaild/atlas-force",
+  "name": "@thaild12042003/atlas-forge",
   "version": "0.1.0",
   "description": "Local-first project memory operating layer for coding agents",
   "type": "module",
@@ -42,7 +42,7 @@
     "context",
     "cli"
   ],
-  "author": "thaildhe172591",
+  "author": "thaild12042003",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/thaildhe172591/Atlas-Force.git"
