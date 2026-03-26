@@ -18,7 +18,7 @@ const vitestPackageJson = require.resolve('vitest/package.json');
 const vitestBin = path.join(path.dirname(vitestPackageJson), 'vitest.mjs');
 const args = process.argv.slice(2);
  
-console.log(`[Atlas Forge] Setting TMPDIR to: ${resolvedTemp}`);
+globalThis.console.log(`[Atlas Forge] Setting TMPDIR to: ${resolvedTemp}`);
  
 const result = spawnSync(process.execPath, [vitestBin, ...args], {
     stdio: 'inherit',
