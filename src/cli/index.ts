@@ -1,6 +1,5 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { ZodError } from 'zod';
@@ -10,11 +9,6 @@ import { MEMORY_TYPES } from '../core/models/states.js';
 const CLI_VERSION = '0.3.2';
 
 class CliValidationError extends Error {}
-
-function isMainModule() {
-    if (!process.argv[1]) return false;
-    return import.meta.url === pathToFileURL(process.argv[1]).href;
-}
 
 function formatError(err: unknown) {
     if (err instanceof CliValidationError) {
@@ -380,8 +374,4 @@ export function createProgram() {
 export async function runCli(argv = process.argv) {
     const program = createProgram();
     await program.parseAsync(argv);
-}
-
-if (isMainModule()) {
-    runCli().catch((err) => handleCommandError(err, false));
 }

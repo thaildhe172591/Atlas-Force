@@ -1,6 +1,5 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -277,16 +276,4 @@ export class AtlasForgeMcpServer {
 export async function runMcpServer() {
     const server = new AtlasForgeMcpServer();
     await server.run();
-}
-
-function isMainModule() {
-    if (!process.argv[1]) return false;
-    return import.meta.url === pathToFileURL(process.argv[1]).href;
-}
-
-if (isMainModule()) {
-    runMcpServer().catch((err) => {
-        console.error(err);
-        process.exit(1);
-    });
 }
