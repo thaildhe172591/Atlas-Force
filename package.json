@@ -1,6 +1,6 @@
 {
   "name": "@thaild12042003/atlas-forge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local-first project memory operating layer for coding agents",
   "type": "module",
   "engines": {

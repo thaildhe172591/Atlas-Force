@@ -1,107 +1,100 @@
 # ⚒️ Atlas Forge
 
-**Local-first project memory operating layer for coding agents.**
+**The Local-First Knowledge Orchestration Engine for AI Agents.**
 
-Atlas Forge is a lightweight, high-performance engine designed to give AI agents a persistent, structured memory of your codebase. Unlike generic vector DBs, Atlas Forge focuses on **human-readable, local-first JSONL storage** that lives inside your project in the `.atlasforge/` directory.
+Atlas Forge is a high-performance, developer-centric memory layer designed to bridge the gap between AI coding agents and persistent project knowledge. It manages structured, human-readable JSONL records within your repository, enabling agents to maintain context across tasks without network overhead or vendor lock-in.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![NPM Version](https://img.shields.io/npm/v/atlas-forge.svg)](https://www.npmjs.com/package/atlas-forge)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18-blue.svg)](https://nodejs.org)
-
----
-
-## 🚀 Why Atlas Forge?
-
-- **Zero-Latency**: Local JSONL storage means 0ms network overhead.
-- **Agent-First**: Designed specifically for the "Cortex" memory pattern (Init -> Start -> Add -> Close).
-- **Human Readable**: You can open `.atlasforge/canonical/canonical.jsonl` and read exactly what the AI remember.
-- **Atomic Operations**: Synchronous I/O ensures consistency even during rapid agent iterations.
-- **Searchable**: Built-in lexical search and similarity scoring without external dependencies.
+[![NPM Version](https://img.shields.io/npm/v/@thaild12042003/atlas-forge.svg?style=flat-square&color=blue)](https://www.npmjs.com/package/@thaild12042003/atlas-forge)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18-green.svg?style=flat-square)](https://nodejs.org)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
 ---
 
-## 📦 Installation
+## 🚀 Key Features
 
-```bash
-npm install atlas-forge
-```
-
-Or run via NPX:
-
-```bash
-npx atlas-forge --help
-```
+- **📂 Local-First Storage**: All data lives in `.atlasforge/` as human-readable JSONL.
+- **⚡ Atomic Operations**: Synchronous I/O primitives designed for high-concurrency agent environments.
+- **🛡️ Task Lifecycle**: Built-in `TaskSession` management with automatic memory promotion and validation.
+- **🔍 Lexical Retrieval**: Built-in similarity scoring and metadata filtering.
+- **📦 Zero Config**: Initialize and start capturing project memory in under 5 seconds.
 
 ---
 
-## 🛠️ Usage
+## 📦 Quick Start
 
-### CLI
+### Installation
 
-Initialize Atlas Forge in your project:
 ```bash
-atlas-forge init
+npm install @thaild12042003/atlas-forge
 ```
 
-Start a new task:
+### CLI Usage
+
+Initialize the forged core:
 ```bash
-atlas-forge task start --summary "Implement new auth flow"
+npx atlas-forge init
 ```
 
-Add a memory:
+Start an active session:
 ```bash
-atlas-forge add --type decision --title "Used JWT" --summary "Decided to use JWT for stateless auth"
+npx atlas-forge task start "Implement user authentication"
 ```
 
-Close the task (Verifies and promotes memory):
+Capture a technical decision:
 ```bash
-atlas-forge task close --summary "Auth flow completed"
+npx atlas-forge add --type decision --title "JWT Auth" --summary "Using RS256 for secure tokens"
 ```
 
-### Programmatic API
-
-```typescript
-import { AtlasForge } from 'atlas-forge';
-
-const forge = await AtlasForge.init(process.cwd());
-
-// Start task
-await forge.taskStart({ summary: 'Refactor engine' });
-
-// Add manual memory
-await forge.add({
-  memory_type: 'module',
-  title: 'Orchestrator',
-  summary: 'Refactored task closure logic',
-  what_changed: 'src/core/orchestrator/task-close.ts',
-  why_it_matters: 'Ensures session safety'
-});
-
-// Close and promote
-const result = await forge.taskClose({ summary: 'Refactoring complete' });
-console.log(`Promoted ${result.promoted_entries.length} memories.`);
+Close and Verify (Promotes to Canonical Store):
+```bash
+npx atlas-forge task close "Auth module completed"
 ```
 
 ---
 
-## 🏗️ Architecture
+## 🏛️ Architecture
 
-Atlas Forge maintains two primary stores:
-1. **Staging Store**: Temporarily holds "draft" or "verified" memories during an active task.
-2. **Canonical Store**: The project's "Gold Standard" memory. Entries are promoted here after validation (Doctor) and task closure.
+Atlas Forge implements a dual-store architecture to separate "Working Memory" from "Long-term Knowledge".
 
-All data is stored in `.atlasforge/`:
-- `staging/`: JSONL drafts.
-- `canonical/`: Permanent memory.
-- `sessions/`: Task lifecycle history.
-- `config.yaml`: Engine behavior settings.
+```mermaid
+graph TD
+    A[Agent Action] -->|Task Start| B(Staging Store)
+    B -->|Task Close| C{Doctor Operation}
+    C -->|Verified| D[Canonical Store]
+    C -->|Failed| E[Manual Review]
+    D -->|Search/Retrieve| F[Context Injection]
+```
+
+- **Staging Store**: Holds "draft" or "verified" memories during an active task.
+- **Canonical Store**: The "Gold Standard" knowledge base, optimized for retrieval.
+- **Orchestrator**: Manages the transitions and validates data integrity.
+
+---
+
+## 🔮 Vision & Roadmap
+
+Atlas Forge is evolving into a comprehensive Operating Layer for AI coding assistants.
+
+### 📍 v0.2.0: Deep Integration
+- [ ] **Git Adapter**: Automatic memory extraction from commits and diffs.
+- [ ] **Freshness Engine**: Detect when memories become "stale" due to code changes.
+- [ ] **Multi-Session Support**: Parallel task tracking for complex agents.
+
+### 📍 v0.3.0: Intelligence Layer
+- [ ] **Vector Search**: Conceptual similarity search using local embeddings (Orama/LanceDB).
+- [ ] **LLM Summarization**: Automated memory entry drafting via Gemini/GPT-4o adapters.
+
+### 📍 v0.4.0: Knowledge Mesh
+- [ ] **Project Fingerprinting**: Global project metadata for better cross-repo context.
+- [ ] **Visualizer**: Web-based dashboard for exploring the project knowledge graph.
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+We welcome professional contributions. Please ensure all code passes the `npm run lint` and `npm test` suites before submitting a PR.
 
 ## 📄 License
 
-MIT © 2026 Atlas Forge Contributors
+MIT © 2026 [thaild12042003](https://github.com/thaildhe172591)
