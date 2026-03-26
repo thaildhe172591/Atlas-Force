@@ -14,7 +14,7 @@ export class ConfigLoader {
             const content = fs.readFileSync(configPath, 'utf-8');
             const parsed = yaml.parse(content);
             return AtlasForgeConfigSchema.parse({ ...DEFAULTS, ...parsed }) as AtlasForgeConfig;
-        } catch (err) {
+        } catch {
             return DEFAULTS;
         }
     }

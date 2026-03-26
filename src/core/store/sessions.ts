@@ -18,7 +18,7 @@ export class SessionStore {
                 const session = JSON.parse(content) as TaskSession;
                 if (session.status === 'active') return session;
             }
-        } catch (_) { /* no active sessions */ }
+        } catch { /* no active sessions */ }
         return undefined;
     }
 }

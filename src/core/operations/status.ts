@@ -6,7 +6,7 @@ import type { StatusSnapshot } from '../models/index.js';
 export async function statusOperation(
     staging: StagingStore,
     canonical: CanonicalStore,
-    fsm: FileSystemManager
+    _fsm: FileSystemManager
 ): Promise<{ snapshot: StatusSnapshot }> {
     const sCount = (await staging.getAll()).length;
     const cCount = (await canonical.all()).length;

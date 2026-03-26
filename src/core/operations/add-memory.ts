@@ -4,8 +4,6 @@ import type { AddMemoryOptions, MemoryEntry } from '../models/index.js';
 import type { StagingStore } from '../store/staging.js';
 import { uuid7 } from '../utils/uuid.js';
 
-import * as path from 'node:path';
-
 export async function addOperation(
     options: AddMemoryOptions,
     staging: StagingStore
