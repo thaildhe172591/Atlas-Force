@@ -51,6 +51,29 @@ Close and Verify (Promotes to Canonical Store):
 npx atlas-forge task close "Auth module completed"
 ```
 
+## 🤖 AI Agent Integration (MCP)
+
+Atlas Forge supports the **Model Context Protocol (MCP)**, allowing AI Agents (like Claude Desktop) to use the engine as their own project memory.
+
+### Setup for Claude Desktop
+Add the following to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "atlas-forge": {
+      "command": "npx",
+      "args": ["-y", "@thaild12042003/atlas-forge-mcp"]
+    }
+  }
+}
+```
+
+### Available AI Tools
+- `af_start_task`: AI will call this to begin a collaboration.
+- `af_add_memory`: AI will automatically capture decisions and code patterns.
+- `af_search`: AI will retrieve relevant past context for your questions.
+
 ---
 
 ## 🏛️ Architecture
