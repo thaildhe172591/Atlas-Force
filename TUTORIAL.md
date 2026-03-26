@@ -8,6 +8,18 @@ This guide will help you understand the core concepts of knowledge orchestration
 
 ### 1. The Dual-Store System
 Atlas Forge manages knowledge in two stages:
+
+```mermaid
+graph LR
+    A[Agent Action] --> B(Staging Store)
+    B --> C{Doctor Check}
+    C -->|Pass| D[(Canonical Store)]
+    C -->|Fail| E[Manual Fix Required]
+    
+    style B fill:#fff4dd,stroke:#d4a017
+    style D fill:#e1f5fe,stroke:#01579b
+```
+Atlas Forge manages knowledge in two stages:
 - **Staging Area**: Where "active" memories live during a task. They are drafts, potentially incomplete or unverified.
 - **Canonical Store**: The "Gold Standard" of knowledge. Only verified, high-quality memories are promoted here.
 

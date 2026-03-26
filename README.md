@@ -10,7 +10,58 @@ Atlas Forge is a developer-centric, local-first memory layer designed to give AI
 
 ---
 
-## 🌟 Why Atlas Forge?
+## 🗺️ Logic & Architecture
+
+### System Architecture
+Atlas Forge follows a strict 4-layer separation of concerns to ensure atomic I/O and predictable agent behavior.
+
+```mermaid
+graph TD
+    subgraph "Interface Layer"
+        CLI[CLI Command]
+        MCP[MCP Server]
+    end
+
+    subgraph "Core Engine"
+        F[Facade] --> OPS[Operations]
+        OPS --> ST[Staging Store]
+        OPS --> CA[Canonical Store]
+    end
+
+    subgraph "Storage Layer"
+        ST --> FSM[FileSystemManager]
+        CA --> FSM
+        FSM --> JSONL[".atlasforge/*.jsonl"]
+    end
+
+    CLI --> F
+    MCP --> F
+```
+
+### The "Forge Cycle"
+How knowledge moves from a thought to a permanent project memory.
+
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant Staging
+    participant Doctor
+    participant Canonical
+
+    Agent->>Staging: add_memory (Draft)
+    Note over Staging: JSONL Append
+    Agent->>Doctor: close_task (Trigger)
+    Doctor->>Staging: Scan & Validate
+    alt Passes Diagnostics
+        Doctor->>Canonical: Promote Entries
+        Doctor->>Staging: Clear Task Context
+        Canonical-->>Agent: Success (Verified Knowledge)
+    else Fails
+        Doctor-->>Agent: Failure (Returns Warn/Fail map)
+    end
+```
+
+---
 
 Generic vector databases are often "black boxes" for agents. Atlas Forge is different:
 - **🗂️ Local-First**: Knowledge stays in your repo under `.atlasforge/`.
