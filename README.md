@@ -74,6 +74,8 @@ Add the following to your `claude_desktop_config.json`:
 - `af_add_memory`: AI will automatically capture decisions and code patterns.
 - `af_search`: AI will retrieve relevant past context for your questions.
 
+For a detailed guide on how to configure various AI models, see [AI_PROTOCOL.md](file:///d:/DevProjects/Atlas%20Forge/AI_PROTOCOL.md).
+
 ---
 
 ## 🏛️ Architecture
