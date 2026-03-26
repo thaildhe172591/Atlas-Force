@@ -4,7 +4,7 @@
   "description": "A high-performance, local-first knowledge orchestration engine that empowers AI agents with persistent codebase memory using structured JSONL storage.",
   "type": "module",
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "bin": {
     "atlas-forge": "dist/cli/bin.js",
