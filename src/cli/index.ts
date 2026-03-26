@@ -7,7 +7,7 @@ import { ZodError } from 'zod';
 import { AtlasForge } from '../core/facade.js';
 import { MEMORY_TYPES } from '../core/models/states.js';
 
-const CLI_VERSION = '0.3.1';
+const CLI_VERSION = '0.3.2';
 
 class CliValidationError extends Error {}
 
@@ -79,7 +79,8 @@ export function createProgram() {
     program
         .name('atlas-forge')
         .description('Atlas Forge CLI - The Persistent Knowledge Orchestration Engine')
-        .version(CLI_VERSION);
+        .version(CLI_VERSION)
+        .option('-c, --cwd <path>', 'Working directory', process.cwd());
 
     program
         .command('init')
@@ -87,7 +88,7 @@ export function createProgram() {
         .option('-j, --json', 'Output machine-readable JSON')
         .action(async (options: { json?: boolean }) => {
             const json = Boolean(options.json);
-            const root = process.cwd();
+            const root = path.resolve(program.opts().cwd);
             try {
                 const existed = fs.existsSync(path.join(root, '.atlasforge'));
                 await AtlasForge.init(root);
@@ -118,7 +119,7 @@ export function createProgram() {
         .option('-j, --json', 'Output machine-readable JSON')
         .action(async (summary: string, options: { modules?: string[]; json?: boolean }) => {
             const json = Boolean(options.json);
-            const root = process.cwd();
+            const root = path.resolve(program.opts().cwd);
             try {
                 ensureInitialized(root);
                 const forge = await AtlasForge.load(root);
@@ -161,7 +162,7 @@ export function createProgram() {
         .option('-j, --json', 'Output machine-readable JSON')
         .action(async (options: { title: string; summary: string; type: string; whatChanged: string; why: string; json?: boolean }) => {
             const json = Boolean(options.json);
-            const root = process.cwd();
+            const root = path.resolve(program.opts().cwd);
             try {
                 ensureInitialized(root);
                 const type = validateMemoryType(options.type);
@@ -203,7 +204,7 @@ export function createProgram() {
         .option('-j, --json', 'Output machine-readable JSON')
         .action(async (summary: string, options: { json?: boolean }) => {
             const json = Boolean(options.json);
-            const root = process.cwd();
+            const root = path.resolve(program.opts().cwd);
             try {
                 ensureInitialized(root);
                 const forge = await AtlasForge.load(root);
@@ -237,7 +238,7 @@ export function createProgram() {
         .option('-j, --json', 'Output machine-readable JSON')
         .action(async (options: { json?: boolean }) => {
             const json = Boolean(options.json);
-            const root = process.cwd();
+            const root = path.resolve(program.opts().cwd);
             try {
                 ensureInitialized(root);
                 const forge = await AtlasForge.load(root);
@@ -276,7 +277,7 @@ export function createProgram() {
         .option('-j, --json', 'Output machine-readable JSON')
         .action(async (query: string, options: { limit: string; json?: boolean }) => {
             const json = Boolean(options.json);
-            const root = process.cwd();
+            const root = path.resolve(program.opts().cwd);
             try {
                 ensureInitialized(root);
                 const limit = validateLimit(options.limit);
@@ -308,14 +309,13 @@ export function createProgram() {
                 handleCommandError(err, json);
             }
         });
-
     program
         .command('doctor')
         .description('Run diagnostics against staged memories')
         .option('-j, --json', 'Output machine-readable JSON')
         .action(async (options: { json?: boolean }) => {
             const json = Boolean(options.json);
-            const root = process.cwd();
+            const root = path.resolve(program.opts().cwd);
             try {
                 ensureInitialized(root);
                 const forge = await AtlasForge.load(root);
@@ -345,7 +345,7 @@ export function createProgram() {
         .option('-j, --json', 'Output machine-readable JSON')
         .action(async (options: { json?: boolean }) => {
             const json = Boolean(options.json);
-            const root = process.cwd();
+            const root = path.resolve(program.opts().cwd);
             try {
                 const result = await AtlasForge.verify(root);
                 const payload = {

@@ -7,33 +7,30 @@ const ROOT = process.cwd();
 const TEST_ROOT = path.resolve(ROOT, 'tmp/cli-smoke');
 
 async function execCli(cwd: string, args: string[]) {
-    const originalCwd = process.cwd();
     const originalStdoutWrite = process.stdout.write.bind(process.stdout);
     const originalStderrWrite = process.stderr.write.bind(process.stderr);
     let stdout = '';
     let stderr = '';
-
+ 
     process.stdout.write = ((chunk: any) => {
         stdout += String(chunk);
         return true;
     }) as typeof process.stdout.write;
-
+ 
     process.stderr.write = ((chunk: any) => {
         stderr += String(chunk);
         return true;
     }) as typeof process.stderr.write;
-
+ 
     process.exitCode = undefined;
-    process.chdir(cwd);
-
+ 
     try {
-        await runCli(['node', 'atlas-forge', ...args]);
+        await runCli(['node', 'atlas-forge', '--cwd', cwd, ...args]);
     } finally {
-        process.chdir(originalCwd);
         process.stdout.write = originalStdoutWrite;
         process.stderr.write = originalStderrWrite;
     }
-
+ 
     const code = process.exitCode ?? 0;
     process.exitCode = undefined;
     return { code, stdout, stderr };

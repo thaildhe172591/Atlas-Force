@@ -8,7 +8,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { AtlasForge } from '../core/facade.js';
 import { MEMORY_TYPES } from '../core/models/states.js';
 
-const MCP_VERSION = '0.3.1';
+const MCP_VERSION = '0.3.2';
 
 export const MCP_MEMORY_TYPES = [...MEMORY_TYPES];
 

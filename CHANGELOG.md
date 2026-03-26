@@ -1,7 +1,18 @@
 # Changelog
-
+ 
 All notable changes to this project are documented in this file.
-
+ 
+## 0.3.2 - 2026-03-27
+ 
+### Added
+- CLI: Global `--cwd <path>` flag to control working directory independently of `process.cwd()`.
+ 
+### Fixed
+- CI: Resolved parallel test flakiness by using `--cwd` for smoke tests instead of `process.chdir()`.
+- Windows: Improved `scripts/run-vitest.mjs` to handle project paths with spaces and inherited environment variables.
+- Node.js 18.x: Better compatibility for test runner using `spawnSync`.
+- CLI/MCP: Synchronized internal versioning to `0.3.2`.
+ 
 ## 0.3.1 - 2026-03-27
 
 ### Added
