@@ -1,43 +1,57 @@
-# 🤖 Atlas Forge: Global AI Agent Protocol
+# 🤖 Atlas Forge: Universal AI Agent Protocol (v0.2.2)
 
-This document serves as the **Standard Operating Procedure (SOP)** for any AI Agent (Claude, Gemini, Codex, Antigravity) interacting with this codebase.
-
-## 🧠 The "Brain" Philosophy
-This project uses **Atlas Forge** as its external long-term memory. AI Agents MUST consult the `.atlasforge/` directory before making major structural changes and MUST record new architectural decisions.
+This document defines the **Standard Operating Procedure (SOP)** for any AI Agent (Claude, Gemini, Cursor, Antigravity) interacting with this codebase. Compliance is MANDATORY to maintain project cohesion.
 
 ---
 
-## 🛠️ Model-Specific Integration
+## 🧠 The "Titan Brain" Philosophy
+Atlas Forge is NOT just a log; it is the **Single Source of Truth** for architectural rationale. 
+- **Agents MUST NOT** make significant design changes without consulting `af_search`.
+- **Agents MUST** record the *rationale* (the "Why") behind every implementation.
 
-### 1. Claude (Anthropic / Claude Desktop)
+---
+
+## 🛠️ Model-Specific Directives
+
+### 1. Claude (Anthropic / Cursor / IDEs)
 - **Interface**: Model Context Protocol (MCP).
-- **Instruction**: Use the `af_search` tool to find context. Use `af_add_memory` to record any `decision` or `module` changes.
+- **Tooling**: Use `af_search` for context and `af_add_memory` for every major code change.
+- **Goal**: Maintain 100% parity between code state and knowledge store.
 
-### 2. Gemini (Google)
-- **Interface**: CLI / File-system access.
-- **Instruction**: Read `.atlasforge/canonical/canonical.jsonl` to understand the project history. Run `npx atlas-forge status` to see the current task state.
+### 2. Gemini & Antigravity (Google)
+- **Interface**: Direct File Access / CLI.
+- **Instruction**: Read `.atlasforge/canonical/canonical.jsonl` at session start.
+- **Goal**: Serve as the "Forge Master" ensuring all staging memories are promoted correctly via `af_close_task`.
 
-### 3. Antigravity (Google DeepMind)
-- **Interface**: Internal Tools / CLI.
-- **Instruction**: You are the primary orchestrator. Always wrap significant edits with `atlas-forge start` and `atlas-forge close`. Ensure all `implementation_plan.md` decisions are captured via `atlas-forge add`.
-
-### 4. Codex / GitHub Copilot
-- **Interface**: Context Window / System Prompts.
-- **Instruction**: Reference `@.atlasforge` in your chat context to ensure alignment with established patterns.
+### 3. Codex / GitHub Copilot
+- **Instruction**: Use the `@.atlasforge` reference to ground suggestions in the project's established memory.
 
 ---
 
-## 📋 Agent Checklist
+## 📋 Standard Workflow Checklist
 
-Before any implementation:
-- [ ] Check `af_search` for related patterns or previous failed attempts.
-- [ ] Ensure an active session exists (`af_status`).
+### Phase A: Discovery (MANDATORY)
+- [ ] Call `af_search` with keywords about the task.
+- [ ] Call `af_status` to check for active sessions or pending staging memories.
 
-After any implementation:
-- [ ] Capture key decisions (`af_add_memory --type decision`).
-- [ ] Record new module patterns (`af_add_memory --type module`).
-- [ ] Run diagnostics before closing (`af_close`).
+### Phase B: Implementation (AUTO)
+- [ ] If a design choice is made (e.g., opting for a specific library or pattern), call `af_add_memory --type decision`.
+- [ ] If a new directory structure is created, call `af_add_memory --type module`.
+
+### Phase C: Finalization (MANDATORY)
+- [ ] Call `af_close_task` with a comprehensive summary of accomplishments.
+- [ ] Verify that the "Doctor" diagnostics pass.
 
 ---
 
-*This protocol ensures that regardless of which AI is working on the project, the knowledge remains persistent and unified.*
+## 🏷️ Memory Type Standard
+| Type | Use Case |
+|------|----------|
+| `decision` | Rationale for logic, libraries, or architecture. |
+| `module` | Description of a component's responsibility. |
+| `bugfix` | Root cause analysis and prevention strategy. |
+| `code-pattern` | Template logic for future reuse. |
+
+---
+
+*Atlas Forge ensures that knowledge outlives the Chat Session. Forge well.*
