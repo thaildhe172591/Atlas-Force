@@ -39,7 +39,7 @@ describe('Operations Layer', () => {
     });
 
     it('doctorOperation should detect duplicates and missing evidence', async () => {
-        const entry1 = await addOperation({
+        await addOperation({
             memory_type: 'decision',
             title: 'Duo',
             summary: 'Duo',

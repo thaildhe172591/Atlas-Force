@@ -15,7 +15,7 @@ program
     .action(async () => {
         try {
             console.log(chalk.blue('Forging Atlas...'));
-            const forge = await AtlasForge.init(process.cwd());
+            await AtlasForge.init(process.cwd());
             console.log(chalk.green('✔ Atlas Forge initialized in .atlasforge/'));
         } catch (err: any) {
             console.error(chalk.red(`Failed: ${err.message}`));
