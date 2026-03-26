@@ -1,0 +1,552 @@
+# Atlas Forge v0.1.0 Implementation Plan (v2.1 — Approved)
+
+> **For engineer:** Follow tasks sequentially. Each step is one action (2-5 min). TDD: write test → verify fail → implement → verify pass → commit.
+
+**Goal:** Ship `atlas-forge` as an npm package — a local-first project memory layer with CLI + programmatic API.
+
+**Architecture:** Single npm package with subpath exports. Core engine API is source of truth. CLI wraps facade. `.atlasforge/` stores all data locally.
+
+**Tech Stack:** TypeScript, Node.js ≥18, Commander.js, Zod, Vitest, tsup
+
+**Locked decisions (v0.1):**
+- Retrieval: **simple lexical scan over JSONL** (no SQLite/FTS)
+- Build packs: **1 generic `packs/default.md`** output only
+- Adapters: **optional, deferred to v0.1.1**
+- Staging mutations: **full-file rewrite** semantics
+- Canonical: **append-only**, no update/delete
+- UUID strategy: **`crypto.randomUUID()` for both `record_id` and `memory_id`** (v0.1 uses UUID v4 generic; v7 time-sortable deferred to v0.2 when ordering matters)
+- Storage paths: **`.atlasforge/sessions/<id>.json`** (sessions at root, NOT under handoff/)
+- Init semantics: **`init()` creates `.atlasforge/config.yaml` if not exists, skips if exists** (no overwrite unless `--force`)
+- Stale detection: **v0.1 reports stale count from canonical state only** (full freshness engine deferred to v0.2)
+
+---
+
+## Batch 1: Scaffolding + Models + Schemas (Tasks 1-4)
+
+### Task 1: Initialize npm project
+
+**Files:**
+- Create: `package.json`, `tsconfig.json`, `vitest.config.ts`, `tsup.config.ts`, `.gitignore`
+
+**Steps:**
+1. `npm init -y`
+2. `npm i commander yaml chalk zod fast-glob`
+3. `npm i -D typescript vitest tsup @types/node tsx`
+4. Configure `tsconfig.json` (target ES2022, module ESNext, strict)
+5. Configure `vitest.config.ts` (globals, node env)
+6. Configure `package.json` exports + bin + scripts
+7. Configure `tsup.config.ts` (entry points, ESM, dts)
+8. Commit: `chore: initialize atlas-forge project scaffolding`
+
+---
+
+### Task 2: Core models — states + entry
+
+**Files:**
+- Create: `src/core/models/states.ts`, `src/core/models/entry.ts`, `src/core/models/index.ts`
+- Test: `tests/core/models/entry.test.ts`
+
+**Test cases:**
+- Sample fixture with all required identity fields (`record_id`, `memory_id`, `version`) passes Zod schema validation
+- `modules` is `string[]` (not single string)
+- `EvidenceRef` discriminated union: file has `path`, commit has `sha`, url has `url`
+- `FreshnessPolicy.mode` accepts all 3 values
+
+**Steps:** Write test → FAIL → Implement states.ts + entry.ts → PASS → Commit
+
+---
+
+### Task 3: Core models — task, diagnostics, config, operations types
+
+**Files:**
+- Create: `src/core/models/task.ts`, `src/core/models/diagnostics.ts`, `src/core/models/config.ts`, `src/core/models/operations.ts`
+- Test: `tests/core/models/task.test.ts`
+
+**Test cases:**
+- `TaskSession` has `title`, `related_memories_loaded`, `handoff_path?`
+- `DoctorResult` has `can_promote` + `stats`
+- `StatusSnapshot` has store counts
+- `AtlasForgeConfig` has `retrieval`, `dedupe`, `task.digest_budget`
+- All operation input/output types exist (`TaskStartOptions`, `TaskCloseResult`, etc.)
+
+**Steps:** Write test → FAIL → Implement → PASS → Commit
+
+---
+
+### Task 4: Zod schemas
+
+**Files:**
+- Create: `src/core/schemas/entry.ts`, `src/core/schemas/config.ts`, `src/core/schemas/index.ts`
+- Test: `tests/core/schemas/entry.test.ts`
+
+**Test cases:**
+- Valid complete entry passes validation
+- Missing `title` → fail
+- Missing `memory_type` → fail
+- `tags` defaults to `[]`
+- `files` defaults to `[]`
+- `evidence_refs` defaults to `[]`
+- `metadata` defaults to `{}`
+- Invalid `quality_state` value → fail
+- File evidence without `path` → fail
+- Commit evidence without `sha` → fail
+
+**Steps:** Write tests → FAIL → Implement Zod schemas with `.default()` + discriminated union → PASS → Commit
+
+---
+
+## Batch 2: Config + Store Layer (Tasks 5-8)
+
+### Task 5: Config defaults + loader
+
+**Files:**
+- Create: `src/core/config/defaults.ts`, `src/core/config/loader.ts`, `src/core/config/index.ts`
+- Test: `tests/core/config/loader.test.ts`
+
+**Test cases:**
+- Missing config file → returns defaults
+- Valid YAML → merged with defaults
+- Invalid YAML → throws with actionable message
+- Partial config → fills missing from defaults
+- `promote_mode` validates against allowed values
+
+**Steps:** Write tests → FAIL → Implement defaults + YAML loader + Zod validation → PASS → Commit
+
+---
+
+### Task 6: FileSystemManager
+
+**Files:**
+- Create: `src/core/store/fs.ts`
+- Test: `tests/core/store/fs.test.ts`
+
+**Test cases:**
+- `ensureStructure()` creates all `.atlasforge/` subdirs (staging/, canonical/, indexes/, packs/, handoff/, sessions/)
+- `readJsonl()` returns empty array for empty file
+- `readJsonl()` parses multi-line JSONL correctly
+- `appendJsonl()` adds one line to file
+- `writeJsonl()` overwrites entire file (for staging mutations)
+- Non-existent file → handled gracefully
+
+**Steps:** Write tests → FAIL → Implement → PASS → Commit
+
+---
+
+### Task 7: StagingStore
+
+**Files:**
+- Create: `src/core/store/staging.ts`
+- Test: `tests/core/store/staging.test.ts`
+
+**Test cases:**
+- `append()` adds entry to `staging/staging.jsonl`
+- `getAll()` returns all staged entries
+- `getById()` finds by `record_id`
+- `update()` modifies entry in-place via full-file rewrite
+- `remove()` deletes entry via full-file rewrite
+- Update non-existent → throws
+- Concurrent read after write → consistent
+
+**Steps:** Write tests → FAIL → Implement (full-file rewrite for mutations) → PASS → Commit
+
+---
+
+### Task 8: CanonicalStore
+
+**Files:**
+- Create: `src/core/store/canonical.ts`, `src/core/store/index.ts`
+- Test: `tests/core/store/canonical.test.ts`
+
+**Test cases:**
+- `append()` adds entry to `canonical/canonical.jsonl`
+- `getAll()` returns all entries
+- `getByRecordId()` finds by `record_id`
+- `getLatestByMemoryId()` returns highest version for a `memory_id`
+- No `update()` or `remove()` methods exist on class
+
+**Steps:** Write tests → FAIL → Implement (append-only) → PASS → Commit
+
+**🔥 Batch 2 Verification:**
+```bash
+npx vitest run
+```
+
+---
+
+## Batch 3: Core Operations (Tasks 9-13)
+
+### Task 9a: Add operation — basic
+
+**Files:**
+- Create: `src/core/operations/add.ts`
+- Test: `tests/core/operations/add.test.ts`
+
+**Test cases:**
+- `add()` generates `record_id` + `memory_id` via `crypto.randomUUID()` + timestamps
+- `add()` validates input with Zod schema
+- `add()` appends to staging store
+- `add()` returns complete `MemoryEntry`
+
+---
+
+### Task 9b: Add operation — auto-enrich
+
+**Test cases:**
+- If `modules` not provided → infer from `files` paths
+- If `tags` not provided → infer from `modules` + `memory_type`
+- `inferred_fields` tracks which fields were auto-enriched
+- `source` defaults to `'manual'` when called directly
+
+---
+
+### Task 10a: Doctor — schema validation pass
+
+**Files:**
+- Create: `src/core/operations/doctor.ts`
+- Test: `tests/core/operations/doctor.test.ts`
+
+**Test cases:**
+- Entry with valid schema → `pass`
+- Entry missing required field → `fail` check with specific message
+- `stats` correctly counts pass/warn/fail
+- `can_promote` is `false` when any check is `fail`
+
+---
+
+### Task 10b: Doctor — duplicate detection + evidence validation
+
+**Test cases:**
+- Two entries with identical `title` + `summary` → `warn` duplicate
+- Entry with `evidence_refs` referencing non-existent file → `warn`
+- Entry with empty `evidence_refs` → `warn` (not fail)
+- `can_promote` is `true` when only warnings (no fails)
+
+---
+
+### Task 11: Promote operation
+
+**Files:**
+- Create: `src/core/operations/promote.ts`
+- Test: `tests/core/operations/promote.test.ts`
+
+**Test cases:**
+- Promotes `verified` entries from staging → canonical
+- Skips `draft` entries → appears in `skipped` with reason
+- Skips `rejected` entries
+- Removes promoted entries from staging
+- Returns `PromoteResult` with `mode`, `promoted`, `skipped`, `reason_map`
+- Respects `promote_mode` from config
+
+---
+
+### Task 12: Status operation
+
+**Files:**
+- Create: `src/core/operations/status.ts`
+- Test: `tests/core/operations/status.test.ts`
+
+**Test cases:**
+- Returns correct `staging_count`, `canonical_count`
+- Returns `active_session` if one exists
+- Returns `stale_count` = 0 when no stale entries (v0.1: count based on canonical state, full freshness engine in v0.2)
+- Returns `last_reindex_at` from indexes metadata
+
+**🔥 Batch 3 Verification (core vertical slice):**
+```typescript
+// tests/core/vertical-slice.test.ts
+// init → add → doctor → promote → status
+// This proves the core loop works end-to-end without CLI
+```
+
+---
+
+## Batch 4: Retrieval + Materialization + Handoff (Tasks 13-16)
+
+### Task 13: Search — simple lexical retrieval
+
+**Files:**
+- Create: `src/core/retrieval/search.ts`, `src/core/retrieval/scoring.ts`
+- Test: `tests/core/retrieval/search.test.ts`
+
+**Implementation:** Load all canonical entries from JSONL → scan `title`, `summary`, `what_changed`, `tags` → score by term frequency → sort by score descending.
+
+**Test cases:**
+- Query matching title → high score
+- Query matching tag → found
+- No match → empty results
+- `limit` option respected
+- `memory_type` filter works
+- `match_reasons` populated (e.g., "matched in title")
+
+---
+
+### Task 14: Related — query-based similarity
+
+**Files:**
+- Create: `src/core/retrieval/related.ts`, `src/core/retrieval/index.ts`
+- Test: `tests/core/retrieval/related.test.ts`
+
+**Implementation:** Reuse search scoring + add module overlap scoring + tag overlap scoring.
+
+**Test cases:**
+- Query with matching module → found in results
+- `related_limit` from config respected
+- Results ordered by relevance score
+
+---
+
+### Task 15a: Reindex — materialize markdown indexes
+
+**Files:**
+- Create: `src/core/materialization/reindex.ts`
+- Test: `tests/core/materialization/reindex.test.ts`
+
+**Test cases:**
+- Generates `indexes/onboarding.md` from entries with `memory_type: 'onboarding'`
+- Generates `indexes/architecture-map.md` from entries with `memory_type: 'architecture'`
+- Generates `indexes/module-map.md` from unique `modules` across entries
+- Returns `ReindexResult` with `indexes_updated`, `entries_processed`
+
+---
+
+### Task 15b: Reindex — current-state.json + build packs
+
+**Files:**
+- Create: `src/core/materialization/current-state.ts`, `src/core/materialization/build-packs.ts`
+- Test: `tests/core/materialization/build-packs.test.ts`
+
+**Test cases:**
+- Writes `indexes/current-state.json` with structured summary
+- `current_state_updated: true` in result
+- Generates `packs/default.md` — single generic pack with all canonical entries rendered
+- Returns `BuildPacksResult` with `packs_built`, `entries_included`
+
+---
+
+### Task 16: Handoff module
+
+**Files:**
+- Create: `src/core/handoff/current.ts`, `src/core/handoff/sessions.ts`, `src/core/handoff/render.ts`
+- Test: `tests/core/handoff/current.test.ts`
+
+**Test cases:**
+- `saveSession()` writes to `.atlasforge/sessions/<id>.json`
+- `loadSession()` reads session from `.atlasforge/sessions/`
+- `updateHandoff()` writes `.atlasforge/handoff/current.md` with session summary
+- `clearHandoff()` removes `current.md`
+- `renderHandoff()` produces readable markdown from session
+
+---
+
+## Batch 5: Orchestrator + Facade (Tasks 17-20)
+
+### Task 17a: Task Start — session creation + preflight
+
+**Files:**
+- Create: `src/core/orchestrator/task-start.ts`
+- Test: `tests/core/orchestrator/task-start.test.ts`
+
+**Test cases:**
+- Creates new `TaskSession` with `status: 'active'`
+- Saves session to `sessions/`
+- Preflight loads `onboarding.md`, `architecture-map.md`, `module-map.md`
+- Preflight runs `related()` with task summary
+- Preflight loads `handoff/current.md` if exists
+- Returns `TaskStartResult` with all preflight fields populated
+- `skip_preflight: true` → skips but logs reason
+
+---
+
+### Task 17b: Task Start — hints + active session guard
+
+**Test cases:**
+- `modules_hint` narrows related search
+- `files_hint` helps module inference
+- Starting task while another is active → error with actionable message
+
+---
+
+### Task 18a: Task Close — validate + enrich + split
+
+**Files:**
+- Create: `src/core/orchestrator/task-close.ts`
+- Test: `tests/core/orchestrator/task-close.test.ts`
+
+**Test cases:**
+- Empty `summary` → validation error
+- Auto-enriches `modules` from `files` if not provided
+- Auto-enriches `tags` from `modules` + `memory_type`
+- Single memory when `force_single_memory: true`
+- Multiple memories when content spans different modules
+- `inferred_fields` tracked on each created entry
+
+---
+
+### Task 18b: Task Close — doctor + promote + reindex
+
+**Test cases:**
+- Runs doctor on all created drafts
+- `promote_mode: 'direct'` → auto promotes passing entries
+- `promote_mode: 'assisted'` → returns suggestions with reasons
+- `promote_mode: 'manual'` → leaves as verified
+- Runs reindex after promote
+- Runs buildPacks if canonical changed
+- `TaskCloseResult` has `promoted_entries`, `skipped_entries`, `suggestions`
+
+---
+
+### Task 18c: Task Close — handoff + session semantics
+
+**Test cases:**
+- Updates `handoff/current.md` with close summary
+- Doctor hard fail → session stays `active` (NOT closed)
+- Doctor pass + promote success → session closed
+- `closed_summary` populated on session
+- Session record updated in `sessions/`
+
+---
+
+### Task 19: AtlasForge facade — init + load
+
+**Files:**
+- Create: `src/core/facade.ts`, `src/core/index.ts`
+- Test: `tests/core/facade.test.ts`
+
+**Test cases:**
+- `AtlasForge.init(root)` creates `.atlasforge/` with config.yaml + all subdirectories
+- `AtlasForge.init(root)` on already-initialized project → skips config creation (no overwrite)
+- `AtlasForge.init(root, { force: true })` → overwrites config
+- `AtlasForge.load(root)` loads config + wires stores
+- `AtlasForge.load()` on non-init'd root → actionable error
+- Facade delegates `add()` to operations
+- Facade delegates `search()` to retrieval
+- Facade delegates `status()` to operations
+
+---
+
+### Task 20: AtlasForge facade — orchestration methods
+
+**Test cases:**
+- `taskStart()` → delegates to orchestrator, returns `TaskStartResult`
+- `taskClose()` → delegates to orchestrator, returns `TaskCloseResult`
+- `taskHandoff()` → returns `{ session, handoff_path, content_preview }`
+- `getActiveSession()` → returns current active session or undefined
+- **Boundary R1-R4 verified:** core imports nothing from cli/adapters, orchestrator returns data only
+
+**🔥 Batch 5 Verification (full core vertical slice):**
+```typescript
+// tests/core/integration.test.ts
+// AtlasForge.init() → taskStart() → add() → taskClose() → search() → status()
+// Proves the entire core loop works through facade
+```
+
+---
+
+## Batch 6: CLI Layer (Tasks 21-24)
+
+### Task 21: CLI entry + init command
+
+**Files:**
+- Create: `src/cli/bin.ts` (with shebang), `src/cli/index.ts`, `src/cli/commands/init.ts`
+- Test: `tests/cli/init.test.ts`
+
+**Test cases:**
+- `atlas-forge init` creates `.atlasforge/` structure
+- `atlas-forge init` in already-initialized project → graceful message
+- `atlas-forge --version` shows version
+- `atlas-forge --help` shows all commands
+
+---
+
+### Task 22: CLI task commands
+
+**Files:**
+- Create: `src/cli/commands/task.ts`, `src/cli/formatters/task.ts`, `src/cli/formatters/index.ts`
+- Test: `tests/cli/task.test.ts`
+
+**Test cases:**
+- `atlas-forge task start --summary "..."` → creates session, prints preflight digest
+- `atlas-forge task close --summary "..."` → prints close result
+- `atlas-forge task start` without `--summary` → error with usage hint
+
+---
+
+### Task 23: CLI low-level commands
+
+**Files:**
+- Create: `src/cli/commands/add.ts`, `src/cli/commands/search.ts`, `src/cli/commands/doctor.ts`, `src/cli/commands/status.ts`, `src/cli/commands/promote.ts`
+- Test: `tests/cli/commands.test.ts`
+
+---
+
+### Task 24: CLI formatters + error handling
+
+**Files:**
+- Create: `src/cli/formatters/doctor.ts`, `src/cli/formatters/search.ts`, `src/cli/formatters/status.ts`
+
+**Test cases:**
+- Doctor output colored (pass=green, warn=yellow, fail=red)
+- Search results show score + highlights
+- Error messages are action-oriented (not stack traces)
+- Low-level command → hints high-level equivalent when appropriate
+
+**🔥 Batch 6 Verification (local CLI smoke):**
+```bash
+npm run build
+node dist/cli/bin.js init
+node dist/cli/bin.js status
+node dist/cli/bin.js task start --summary "Test task"
+node dist/cli/bin.js add --type task-note --title "Test" --summary "Test note"
+node dist/cli/bin.js doctor
+node dist/cli/bin.js task close --summary "Done testing"
+node dist/cli/bin.js search "test"
+node dist/cli/bin.js reindex
+```
+
+---
+
+## Batch 7 (Optional — v0.1.1): Adapters + Publish
+
+### Task 25: Base adapter interface
+
+**Files:**
+- Create: `src/adapters/base.ts`
+- Test: `tests/adapters/base.test.ts`
+
+---
+
+### Task 26: Gemini adapter (thin)
+
+**Files:**
+- Create: `src/adapters/gemini/index.ts`
+
+---
+
+### Task 27: README + LICENSE + publish
+
+**Files:**
+- Create: `README.md`, `LICENSE` (MIT)
+- Modify: `package.json` (final metadata, keywords, repository)
+
+**Verification:**
+```bash
+npm run build
+npm pack --dry-run           # verify clean tarball
+npm link                     # local install test
+atlas-forge init             # via linked binary
+atlas-forge status
+```
+
+---
+
+## Summary
+
+| Batch | Focus | Tasks | Priority |
+|-------|-------|-------|----------|
+| 1 | Scaffolding + Models + Schemas | 1-4 | **Must** |
+| 2 | Config + Store Layer | 5-8 | **Must** |
+| 3 | Core Operations | 9a-12 | **Must** |
+| 4 | Retrieval + Materialization + Handoff | 13-16 | **Must** |
+| 5 | Orchestrator + Facade | 17a-20 | **Must** |
+| 6 | CLI | 21-24 | **Must** |
+| 7 | Adapters + Publish | 25-27 | **Optional** |
