@@ -8,7 +8,7 @@ import { ADAPTIVE_AGENTS, isAgentSelection } from '../core/config/agent-ready.js
 import { MEMORY_TYPES } from '../core/models/states.js';
 import type { AgentSelection } from '../core/models/index.js';
 
-const CLI_VERSION = '0.3.5';
+const CLI_VERSION = '0.3.6';
 
 class CliValidationError extends Error {}
 

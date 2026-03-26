@@ -1,6 +1,15 @@
 # Changelog
  
 All notable changes to this project are documented in this file.
+
+## 0.3.6 - 2026-03-27
+
+### Changed
+- Documentation: added flow diagrams, quick reference tables, and shorter agent guides for faster onboarding.
+- Release metadata: synchronized package, CLI, MCP, and lockfile versions for publish readiness.
+
+### Added
+- Adaptive agent bootstrap guidance for Claude, Gemini, and Codex.
  
 ## 0.3.2 - 2026-03-27
  
