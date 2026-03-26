@@ -1,6 +1,6 @@
 {
   "name": "@thaild12042003/atlas-forge",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "A high-performance, local-first knowledge orchestration engine that empowers AI agents with persistent codebase memory using structured JSONL storage.",
   "type": "module",
   "engines": {

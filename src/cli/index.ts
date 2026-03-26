@@ -7,7 +7,7 @@ const program = new Command();
 program
     .name('atlas')
     .description('Atlas Forge CLI - The Persistent Knowledge Orchestration Engine')
-    .version('0.2.2');
+    .version('0.2.3');
 
 program
     .command('init')

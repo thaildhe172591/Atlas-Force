@@ -21,7 +21,7 @@ class AtlasForgeMcpServer {
         this.server = new Server(
             {
                 name: "atlas-forge",
-                version: "0.2.2",
+                version: "0.2.3",
             },
             {
                 capabilities: {

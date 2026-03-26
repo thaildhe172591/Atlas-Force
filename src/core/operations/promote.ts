@@ -13,8 +13,7 @@ export async function promoteOperation(
     doctorResult?: DoctorResult
 ): Promise<PromoteResult> {
     const doctor = doctorResult || await doctorOperation(options, staging, fsm);
-    if (!doctor.can_promote) throw new Error('Cannot promote: doctor failed.');
-
+    
     const entries = await staging.getAll();
     const toPromote = options.entry_ids ? entries.filter(e => options.entry_ids!.includes(e.record_id)) : entries;
 
@@ -22,7 +21,15 @@ export async function promoteOperation(
     const skipped: MemoryEntry[] = [];
     const reason_map: Record<string, string> = {};
 
+    const failedEntryIds = new Set(doctor.checks.filter((c: any) => c.status === 'fail').map((c: any) => c.entry_id));
+
     for (const entry of toPromote) {
+        if (failedEntryIds.has(entry.record_id)) {
+            skipped.push(entry);
+            reason_map[entry.record_id] = 'Doctor failed: check diagnostics for details';
+            continue;
+        }
+
         if (mode === 'direct') {
             const p: MemoryEntry = { ...entry, quality_state: 'verified', lifecycle_state: 'canonical' };
             await canonical.append(p);

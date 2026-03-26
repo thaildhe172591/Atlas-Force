@@ -29,16 +29,18 @@ export async function taskCloseOperation(
     const doctor = await doctorOperation({}, st, fsm);
 
     let promoted: MemoryEntry[] = [];
-    if (doctor.can_promote) {
-        // Promote ALL entries in staging, not just the summary entry
-        const res = await promoteOperation({}, st, ca, fsm, promoteMode, doctor);
-        promoted = res.promoted;
-    }
+    let skipped: MemoryEntry[] = [];
+    
+    // Attempt promotion for all staged entries.
+    // Partial promotion will ensure that only valid entries (like the new summary) move forward.
+    const res = await promoteOperation({}, st, ca, fsm, promoteMode, doctor);
+    promoted = res.promoted;
+    skipped = res.skipped;
 
     // ALWAYS close session if we reached here (even if promotion failed)
     // to prevent deadlock on next taskStart
     session.status = 'closed';
     await ss.save(session);
 
-    return { session, promoted_entries: promoted, skipped_entries: [], doctor };
+    return { session, promoted_entries: promoted, skipped_entries: skipped, doctor };
 }
