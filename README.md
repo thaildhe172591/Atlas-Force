@@ -63,6 +63,16 @@ npm install @thaild12042003/atlas-forge
 | Daily local work | `npx atlas-forge ...` | Uses the repo version without a global install |
 | Quick tryout | `npm i -g @thaild12042003/atlas-forge` | Fastest for experimenting across many repos |
 
+## Best Skill Stack
+
+| Agent | Best skill stack | Best for |
+|---|---|---|
+| Claude | `brainstorming` + `systematic-debugging` + `verification-before-completion` | MCP-first design, debugging, and clean handoff |
+| Cursor | `brainstorming` + `documentation-templates` + `verification-before-completion` | IDE-native planning, docs, and ready checks |
+| Codex | `systematic-debugging` + `writing-plans` + `verification-before-completion` | CLI-first feature work, bug fixes, and release safety |
+| Gemini | `writing-plans` + `clean-code` + `verification-before-completion` | Structured CLI work with minimal maintainable changes |
+| Antigravity | `brainstorming` + `workflow-plan` + `verification-before-completion` | Orchestrated tasks with strong promotion discipline |
+
 ## 60-second Quick Start
 
 ```bash
