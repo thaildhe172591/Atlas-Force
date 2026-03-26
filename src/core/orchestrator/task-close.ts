@@ -25,8 +25,8 @@ export async function taskCloseOperation(
         why_it_matters: o.why_it_matters || 'N/A',
     }, st);
 
-    // Run doctor on specifically this entry
-    const doctor = await doctorOperation({ entry_ids: [entry.record_id] }, st, fsm);
+    // Run doctor on ALL entries in staging to ensure consistency
+    const doctor = await doctorOperation({}, st, fsm);
 
     let promoted: MemoryEntry[] = [];
     if (doctor.can_promote) {

@@ -5,6 +5,7 @@ import {
     ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { AtlasForge } from "../core/facade.js";
+import { z } from "zod";
 
 /**
  * Atlas Forge MCP Server
@@ -20,7 +21,7 @@ class AtlasForgeMcpServer {
         this.server = new Server(
             {
                 name: "atlas-forge",
-                version: "0.2.1",
+                version: "0.2.2",
             },
             {
                 capabilities: {
@@ -58,52 +59,56 @@ class AtlasForgeMcpServer {
                         inputSchema: {
                             type: "object",
                             properties: {
-                                summary: { type: "string", description: "Task objectives" },
+                                summary: { type: "string", description: "Short summary of the task objectives" },
                             },
                             required: ["summary"],
                         },
                     },
                     {
                         name: "af_add_memory",
-                        description: "Capture a memory entry (decision, module, etc.)",
+                        description: "Capture a new memory entry (decision, module, task-note, code-pattern)",
                         inputSchema: {
                             type: "object",
                             properties: {
-                                title: { type: "string" },
-                                summary: { type: "string" },
-                                type: { type: "string", enum: ["decision", "module", "task-note", "code-pattern"] },
-                                what_changed: { type: "string" },
-                                why_it_matters: { type: "string" },
+                                title: { type: "string", description: "Descriptive title of the memory" },
+                                summary: { type: "string", description: "Brief summary of the knowledge" },
+                                type: { 
+                                    type: "string", 
+                                    enum: ["decision", "module", "task-note", "code-pattern"],
+                                    description: "The category of this memory" 
+                                },
+                                what_changed: { type: "string", description: "Detailed technical description of the change" },
+                                why_it_matters: { type: "string", description: "Rationale and impact of this decision" },
                             },
                             required: ["title", "summary", "type"],
                         },
                     },
                     {
                         name: "af_search",
-                        description: "Search project knowledge base for context",
+                        description: "Search project knowledge base for relevant context",
                         inputSchema: {
                             type: "object",
                             properties: {
-                                query: { type: "string" },
-                                limit: { type: "number", default: 5 },
+                                query: { type: "string", description: "Search query or keywords" },
+                                limit: { type: "number", description: "Maximum number of results to return", default: 5 },
                             },
                             required: ["query"],
                         },
                     },
                     {
                         name: "af_close_task",
-                        description: "Close active session and promote memories",
+                        description: "Close the active task session and promote staged memories to canonical store",
                         inputSchema: {
                             type: "object",
                             properties: {
-                                summary: { type: "string", description: "Summary of what was accomplished" },
+                                summary: { type: "string", description: "Final summary of what was accomplished in this task" },
                             },
                             required: ["summary"],
                         },
                     },
                     {
                         name: "af_status",
-                        description: "Get engine status snapshots",
+                        description: "Get the current engine status and memory counts",
                         inputSchema: {
                             type: "object",
                             properties: {},
@@ -133,12 +138,20 @@ class AtlasForgeMcpServer {
 
                     case "af_add_memory": {
                         const forge = await this.ensureForge();
+                        const schema = z.object({
+                            title: z.string(),
+                            summary: z.string(),
+                            type: z.enum(["decision", "module", "task-note", "code-pattern"]),
+                            what_changed: z.string().optional(),
+                            why_it_matters: z.string().optional(),
+                        });
+                        const parsed = schema.parse(args);
                         await forge.add({
-                            title: args?.title as string,
-                            summary: args?.summary as string,
-                            memory_type: args?.type as any,
-                            what_changed: args?.what_changed as string,
-                            why_it_matters: args?.why_it_matters as string,
+                            title: parsed.title,
+                            summary: parsed.summary,
+                            memory_type: parsed.type as any,
+                            what_changed: parsed.what_changed || "N/A",
+                            why_it_matters: parsed.why_it_matters || "N/A",
                         });
                         return { content: [{ type: "text", text: "Memory captured to staging." }] };
                     }
