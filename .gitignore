@@ -14,6 +14,8 @@ PLAN.md
 confirm.md
 note.md
 smoke.ts
+.agent/
+implementation_plan.md.resolved
 tests/runner.ts
 tests/debug_fs.ts
 tests/final_sanity.ts
