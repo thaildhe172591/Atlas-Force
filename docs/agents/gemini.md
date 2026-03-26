@@ -1,31 +1,26 @@
 # Gemini Integration (CLI-first)
 
-## Goal
+## Quickstart
 
-Use Atlas Forge commands as a deterministic memory protocol in Gemini sessions.
+```bash
+atlas-forge init --agent gemini --json
+atlas-forge status --json
+atlas-forge search "<query>" --json
+atlas-forge start "<task summary>" --json
+atlas-forge add --type decision --title "<title>" --summary "<summary>" --json
+atlas-forge doctor --json
+atlas-forge close "<outcome summary>" --json
+```
 
-## Workflow checklist
-
-0. `atlas-forge init --agent gemini --json`
-1. `atlas-forge status --json`
-2. `atlas-forge search "<query>" --json`
-3. `atlas-forge start "<task summary>" --json`
-4. `atlas-forge add --type decision --title "<title>" --summary "<summary>" --json`
-5. `atlas-forge doctor --json`
-6. `atlas-forge close "<outcome summary>" --json`
-
-## Conventions
+## One-Screen Flow
 
 - Use `decision` for architecture tradeoffs.
 - Use `module` for component responsibility updates.
 - Use `code-pattern` for reusable implementation templates.
+- Run `atlas-forge optimize --agent gemini --json` when you want to re-sync guidance files.
 
-## Verify
+## Troubleshooting
 
-- Optional re-sync: `atlas-forge optimize --agent gemini --json`
-- Run `atlas-forge verify --json` before first task in a new repo.
-
-## Common issues
-
-- Repository not initialized: run `atlas-forge init`.
+- Repository not initialized: run `atlas-forge init --agent gemini --json`.
 - Validation error: ensure all required add fields are non-empty.
+- Readiness feels low: run `atlas-forge verify --agent gemini --json` and fix the reported gaps.

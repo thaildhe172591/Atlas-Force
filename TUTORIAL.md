@@ -25,6 +25,27 @@ Lifecycle:
 3. `doctor` validate staging quality
 4. `close` promote valid entries
 
+```mermaid
+flowchart LR
+  A["init --agent auto"] --> B["bootstrap agent files"]
+  B --> C["status / search"]
+  C --> D["start"]
+  D --> E["add"]
+  E --> F["doctor"]
+  F --> G["close"]
+  G --> H["canonical"]
+```
+
+## Agent Cheat Sheet
+
+| Agent | First command | Follow-up | Expected result |
+|---|---|---|---|
+| Claude | `af_init` | `af_status` | MCP tools ready, active session visible |
+| Cursor | `af_init` | `af_search` | MCP-first flow inside IDE |
+| Codex | `atlas-forge init --agent codex --json` | `status -> start -> add -> doctor -> close` | CLI JSON flow with ready artifact set |
+| Gemini | `atlas-forge init --agent gemini --json` | `optimize --agent gemini --json` | CLI-first, profile-specific guidance files |
+| Antigravity | `atlas-forge init --agent auto --json` | `doctor` before `close` | Orchestrated CLI workflow with promotion discipline |
+
 ## Hands-on Walkthrough
 
 ### Step 1: Initialize
@@ -98,6 +119,11 @@ npx atlas-forge status --json
 npx atlas-forge search "retry" --json
 npx atlas-forge doctor --json
 ```
+
+Quick decision rule:
+- `init` or `optimize` when you need agent files and workflows created or re-synced.
+- `verify` when you need readiness and config health.
+- `status` when you need live counts plus agent readiness score.
 
 ## Troubleshooting
 

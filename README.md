@@ -16,6 +16,30 @@ Atlas Forge gives AI agents a persistent, inspectable memory layer inside your r
 - Structured lifecycle: `start -> add -> doctor -> close`
 - Dual interface: CLI and MCP
 
+## Flow
+
+```mermaid
+flowchart LR
+  A["init --agent auto"] --> B["bootstrap"]
+  B --> C["start"]
+  C --> D["add"]
+  D --> E["doctor"]
+  E --> F["close"]
+  F --> G["canonical"]
+  B --> H["verify / status"]
+  H --> I["agent readiness score"]
+```
+
+## Quick Reference
+
+| Need | Command | Expected output |
+|---|---|---|
+| Fresh workspace | `atlas-forge init --agent auto` | Creates `.atlasforge/` and agent guidance files |
+| Re-sync assets | `atlas-forge optimize --agent auto --dry-run` | Shows created/skipped artifacts without writing |
+| Check readiness | `atlas-forge verify --json` | Returns `agent_profile`, score, level, and gaps |
+| Start work | `atlas-forge start <summary> --json` | Opens active session |
+| Close work | `atlas-forge close <summary> --json` | Promotes valid staged entries to canonical |
+
 ## Install
 
 ```bash
@@ -98,15 +122,15 @@ Alternative (if your MCP host supports direct binary execution):
 
 ## Guides
 
-- AI protocol: [AI_PROTOCOL.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/AI_PROTOCOL.md)
-- Claude: [docs/agents/claude.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/docs/agents/claude.md)
-- Cursor: [docs/agents/cursor.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/docs/agents/cursor.md)
-- Codex: [docs/agents/codex.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/docs/agents/codex.md)
-- Gemini: [docs/agents/gemini.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/docs/agents/gemini.md)
-- Antigravity: [docs/agents/antigravity.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/docs/agents/antigravity.md)
-- Agent support matrix: [docs/agents/support-matrix.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/docs/agents/support-matrix.md)
+- AI protocol: [AI_PROTOCOL.md](AI_PROTOCOL.md)
+- Claude: [docs/agents/claude.md](docs/agents/claude.md)
+- Cursor: [docs/agents/cursor.md](docs/agents/cursor.md)
+- Codex: [docs/agents/codex.md](docs/agents/codex.md)
+- Gemini: [docs/agents/gemini.md](docs/agents/gemini.md)
+- Antigravity: [docs/agents/antigravity.md](docs/agents/antigravity.md)
+- Agent support matrix: [docs/agents/support-matrix.md](docs/agents/support-matrix.md)
 - Release checklist: [docs/release-checklist.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/docs/release-checklist.md)
-- Changelog: [CHANGELOG.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/CHANGELOG.md)
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
 
 ## License
 

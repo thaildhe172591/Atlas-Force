@@ -1,10 +1,6 @@
 # Claude Integration (MCP-first)
 
-## Goal
-
-Use Atlas Forge as persistent project memory from Claude via MCP.
-
-## Setup
+## Quickstart
 
 Add to `claude_desktop_config.json`:
 
@@ -19,20 +15,24 @@ Add to `claude_desktop_config.json`:
 }
 ```
 
-## Workflow
+Then run:
 
-1. `af_status`
-2. `af_search`
-3. `af_start_task`
-4. `af_add_memory` on key decisions
-5. `af_close_task`
+1. `af_init`
+2. `af_status`
+3. `af_search`
+4. `af_start_task`
+5. `af_add_memory`
+6. `af_close_task`
 
-## Verify
+## One-Screen Flow
 
-- Ensure tools are listed by the MCP host.
-- Run `af_init` (optionally with `{ "agent": "claude" }`) and then `af_status` in a test workspace.
+- Start with `af_init` in a fresh workspace.
+- Use `af_status` to confirm readiness and current memory counts.
+- Capture key decisions with `af_add_memory` while coding.
+- Close with `af_close_task` once the task is done.
 
-## Common issues
+## Troubleshooting
 
 - Workspace not initialized: call `af_init` first.
-- Invalid `type` in `af_add_memory`: use supported memory types from `README.md`.
+- Missing tools: verify the MCP host is loading `atlas-forge-mcp`.
+- Invalid `type`: use the supported memory types in `README.md`.
