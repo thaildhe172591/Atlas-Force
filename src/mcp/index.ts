@@ -5,7 +5,6 @@ import {
     ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { AtlasForge } from "../core/facade.js";
-import { z } from "zod";
 
 /**
  * Atlas Forge MCP Server
@@ -21,7 +20,7 @@ class AtlasForgeMcpServer {
         this.server = new Server(
             {
                 name: "atlas-forge",
-                version: "0.1.1",
+                version: "0.2.1",
             },
             {
                 capabilities: {
@@ -92,6 +91,17 @@ class AtlasForgeMcpServer {
                         },
                     },
                     {
+                        name: "af_close_task",
+                        description: "Close active session and promote memories",
+                        inputSchema: {
+                            type: "object",
+                            properties: {
+                                summary: { type: "string", description: "Summary of what was accomplished" },
+                            },
+                            required: ["summary"],
+                        },
+                    },
+                    {
                         name: "af_status",
                         description: "Get engine status snapshots",
                         inputSchema: {
@@ -140,6 +150,12 @@ class AtlasForgeMcpServer {
                             limit: (args?.limit as number) || 5,
                         });
                         return { content: [{ type: "text", text: JSON.stringify(results, null, 2) }] };
+                    }
+
+                    case "af_close_task": {
+                        const forge = await this.ensureForge();
+                        const result = await forge.taskClose({ summary: args?.summary as string });
+                        return { content: [{ type: "text", text: `Task closed. Promoted ${result.promoted_entries.length} entries.` }] };
                     }
 
                     case "af_status": {

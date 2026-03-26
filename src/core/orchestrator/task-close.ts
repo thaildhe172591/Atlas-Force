@@ -30,7 +30,8 @@ export async function taskCloseOperation(
 
     let promoted: MemoryEntry[] = [];
     if (doctor.can_promote) {
-        const res = await promoteOperation({ entry_ids: [entry.record_id] }, st, ca, fsm, promoteMode, doctor);
+        // Promote ALL entries in staging, not just the summary entry
+        const res = await promoteOperation({}, st, ca, fsm, promoteMode, doctor);
         promoted = res.promoted;
     }
 
