@@ -26,5 +26,6 @@ describe('Contract Sync', () => {
         expect(readme).toContain('atlas-forge search');
         expect(readme).toContain('atlas-forge status');
         expect(readme).toContain('atlas-forge verify');
+        expect(readme).toContain('atlas-forge optimize');
     });
 });

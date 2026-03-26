@@ -5,7 +5,7 @@ export const DEFAULTS: AtlasForgeConfig = {
         default_mode: 'orchestrated',
         auto_preflight: true,
     },
-    promote_mode: 'assisted',
+    promote_mode: 'direct',
     storage: { root: '.atlasforge' },
     retrieval: { related_limit: 10 },
     dedupe: { near_duplicate_threshold: 0.85 },

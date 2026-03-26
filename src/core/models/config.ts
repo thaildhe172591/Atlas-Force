@@ -9,3 +9,15 @@ export interface AtlasForgeConfig {
     dedupe: { near_duplicate_threshold: number };
     task: { digest_budget: { related_memories_max: number; guardrails_max: number } };
 }
+
+export interface PromotionModeHealth {
+    configured_mode: 'assisted' | 'manual' | 'direct';
+    effective_mode: 'assisted' | 'manual' | 'direct';
+    migration_applied: boolean;
+    migration_note?: string;
+}
+
+export interface ConfigLoadResult {
+    config: AtlasForgeConfig;
+    promotion_health: PromotionModeHealth;
+}

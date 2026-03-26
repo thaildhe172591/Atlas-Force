@@ -32,14 +32,13 @@ describe('MCP smoke', () => {
     });
 
     it('handles full task lifecycle with MCP tool handlers', async () => {
-        const afDir = path.join(TEST_ROOT, '.atlasforge');
-        await fs.mkdir(afDir, { recursive: true });
-        await fs.writeFile(path.join(afDir, 'config.yaml'), 'promote_mode: direct\n', 'utf-8');
-
         const server = new AtlasForgeMcpServer(TEST_ROOT);
 
-        const init = await server.handleToolCall('af_init', {});
-        expect(parseToolText(init).ok).toBe(true);
+        const init = await server.handleToolCall('af_init', { agent: 'claude' });
+        const initPayload = parseToolText(init);
+        expect(initPayload.ok).toBe(true);
+        expect(initPayload.agent_profile.applied_agent).toBe('claude');
+        expect(Array.isArray(initPayload.bootstrap.created)).toBe(true);
 
         const start = await server.handleToolCall('af_start_task', { summary: 'MCP smoke task' });
         expect(parseToolText(start).session.status).toBe('active');
@@ -52,12 +51,19 @@ describe('MCP smoke', () => {
         expect(parseToolText(add).entry.memory_type).toBe('code-pattern');
 
         const status = await server.handleToolCall('af_status', {});
-        expect(parseToolText(status).snapshot.staging_count).toBeGreaterThan(0);
+        const statusPayload = parseToolText(status);
+        expect(statusPayload.snapshot.staging_count).toBeGreaterThan(0);
+        expect(statusPayload.promotion.effective_mode).toBe('direct');
+        expect(statusPayload.agent_profile.applied_agent).toBe('claude');
+        expect(typeof statusPayload.agent_readiness_score).toBe('number');
 
         const close = await server.handleToolCall('af_close_task', { summary: 'MCP smoke done' });
         const closePayload = parseToolText(close);
         expect(closePayload.session.status).toBe('closed');
         expect(closePayload.promoted_count).toBeGreaterThan(0);
+
+        const statusAfterClose = await server.handleToolCall('af_status', {});
+        expect(parseToolText(statusAfterClose).snapshot.canonical_count).toBeGreaterThan(0);
 
         const search = await server.handleToolCall('af_search', { query: 'Pattern', limit: 5 });
         expect(parseToolText(search).count).toBeGreaterThanOrEqual(1);
@@ -65,7 +71,7 @@ describe('MCP smoke', () => {
 
     it('returns clear validation failure for bad add payload', async () => {
         const server = new AtlasForgeMcpServer(TEST_ROOT);
-        await server.handleToolCall('af_init', {});
+        await server.handleToolCall('af_init', { agent: 'codex' });
         await expect(server.handleToolCall('af_add_memory', { title: 'Only title' })).rejects.toThrow();
     });
 
@@ -74,7 +80,7 @@ describe('MCP smoke', () => {
         await expect(uninitializedServer.handleToolCall('af_status', {})).rejects.toThrow(/not initialized/i);
 
         const initializedServer = new AtlasForgeMcpServer(TEST_ROOT);
-        await initializedServer.handleToolCall('af_init', {});
+        await initializedServer.handleToolCall('af_init', { agent: 'gemini' });
         await expect(initializedServer.handleToolCall('af_close_task', { summary: 'No session' })).rejects.toThrow(/no active session/i);
     });
 });

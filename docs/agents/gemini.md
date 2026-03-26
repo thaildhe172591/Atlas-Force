@@ -6,6 +6,7 @@ Use Atlas Forge commands as a deterministic memory protocol in Gemini sessions.
 
 ## Workflow checklist
 
+0. `atlas-forge init --agent gemini --json`
 1. `atlas-forge status --json`
 2. `atlas-forge search "<query>" --json`
 3. `atlas-forge start "<task summary>" --json`
@@ -21,6 +22,7 @@ Use Atlas Forge commands as a deterministic memory protocol in Gemini sessions.
 
 ## Verify
 
+- Optional re-sync: `atlas-forge optimize --agent gemini --json`
 - Run `atlas-forge verify --json` before first task in a new repo.
 
 ## Common issues

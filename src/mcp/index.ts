@@ -7,7 +7,8 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { AtlasForge } from '../core/facade.js';
 import { MEMORY_TYPES } from '../core/models/states.js';
 
-const MCP_VERSION = '0.3.2';
+const MCP_VERSION = '0.3.5';
+const MCP_AGENT_OPTIONS = ['auto', 'claude', 'gemini', 'codex'] as const;
 
 export const MCP_MEMORY_TYPES = [...MEMORY_TYPES];
 
@@ -32,6 +33,10 @@ const closeTaskSchema = z.object({
     summary: z.string().min(1),
 });
 
+const initSchema = z.object({
+    agent: z.enum(MCP_AGENT_OPTIONS).optional(),
+});
+
 export function getMcpTools() {
     return [
         {
@@ -39,7 +44,13 @@ export function getMcpTools() {
             description: 'Initialize Atlas Forge in the current directory',
             inputSchema: {
                 type: 'object',
-                properties: {},
+                properties: {
+                    agent: {
+                        type: 'string',
+                        enum: [...MCP_AGENT_OPTIONS],
+                        description: 'Optional agent profile override (auto, claude, gemini, codex)',
+                    },
+                },
             },
         },
         {
@@ -145,7 +156,7 @@ export class AtlasForgeMcpServer {
 
     private async ensureForge() {
         if (!this.forge) {
-            this.forge = await AtlasForge.load(this.rootDir);
+            this.forge = await AtlasForge.load(this.rootDir, 'auto');
         }
         return this.forge;
     }
@@ -153,9 +164,10 @@ export class AtlasForgeMcpServer {
     async handleToolCall(name: string, args: unknown) {
         switch (name) {
             case 'af_init': {
-                const forge = await AtlasForge.init(this.rootDir);
+                const parsed = initSchema.parse(args ?? {});
+                const { forge, bootstrap, agent_profile } = await AtlasForge.initWithReport(this.rootDir, parsed.agent ?? 'auto');
                 this.forge = forge;
-                return asTextPayload({ ok: true, command: 'af_init', root: this.rootDir });
+                return asTextPayload({ ok: true, command: 'af_init', root: this.rootDir, agent_profile, bootstrap });
             }
             case 'af_start_task': {
                 this.ensureInitialized();
@@ -236,6 +248,11 @@ export class AtlasForgeMcpServer {
                     ok: true,
                     command: 'af_status',
                     snapshot: snapshot.snapshot,
+                    promotion: snapshot.promotion,
+                    agent_profile: snapshot.agent_profile,
+                    agent_readiness_score: snapshot.agent_readiness_score,
+                    level: snapshot.level,
+                    gaps: snapshot.gaps,
                     active_session: active,
                 });
             }

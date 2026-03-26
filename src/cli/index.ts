@@ -4,9 +4,11 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { ZodError } from 'zod';
 import { AtlasForge } from '../core/facade.js';
+import { ADAPTIVE_AGENTS, isAgentSelection } from '../core/config/agent-ready.js';
 import { MEMORY_TYPES } from '../core/models/states.js';
+import type { AgentSelection } from '../core/models/index.js';
 
-const CLI_VERSION = '0.3.2';
+const CLI_VERSION = '0.3.5';
 
 class CliValidationError extends Error {}
 
@@ -67,6 +69,13 @@ function validateMemoryType(value: string) {
     return value as (typeof MEMORY_TYPES)[number];
 }
 
+function validateAgent(value: string): AgentSelection {
+    if (!isAgentSelection(value)) {
+        throw new CliValidationError(`Invalid agent "${value}". Supported values: auto, ${ADAPTIVE_AGENTS.join(', ')}`);
+    }
+    return value;
+}
+
 export function createProgram() {
     const program = new Command();
 
@@ -79,13 +88,15 @@ export function createProgram() {
     program
         .command('init')
         .description('Initialize Atlas Forge in the current directory')
+        .option('-a, --agent <agent>', 'Agent profile (auto, claude, gemini, codex)', 'auto')
         .option('-j, --json', 'Output machine-readable JSON')
-        .action(async (options: { json?: boolean }) => {
+        .action(async (options: { agent: string; json?: boolean }) => {
             const json = Boolean(options.json);
             const root = path.resolve(program.opts().cwd);
             try {
                 const existed = fs.existsSync(path.join(root, '.atlasforge'));
-                await AtlasForge.init(root);
+                const agent = validateAgent(options.agent);
+                const { bootstrap, agent_profile } = await AtlasForge.initWithReport(root, agent);
                 const payload = {
                     ok: true,
                     command: 'init',
@@ -93,12 +104,50 @@ export function createProgram() {
                     atlasforge_path: path.join(root, '.atlasforge'),
                     existed_before: existed,
                     initialized: true,
+                    agent_profile,
+                    bootstrap,
                 };
                 if (json) {
                     outputJson(payload);
                 } else {
                     console.log(chalk.blue('Forging Atlas...'));
                     console.log(chalk.green('OK Atlas Forge initialized in .atlasforge/'));
+                    console.log(chalk.gray(`Agent profile: requested=${agent_profile.requested_agent}, detected=${agent_profile.detected_agent}, applied=${agent_profile.applied_agent}`));
+                    console.log(chalk.gray(`Agent-ready artifacts: created=${bootstrap.created.length}, skipped=${bootstrap.skipped.length}`));
+                }
+            } catch (err) {
+                handleCommandError(err, json);
+            }
+        });
+
+    program
+        .command('optimize')
+        .description('Re-sync adaptive agent artifacts for current workspace')
+        .option('-a, --agent <agent>', 'Agent profile (auto, claude, gemini, codex)', 'auto')
+        .option('--dry-run', 'Preview changes without writing files')
+        .option('-j, --json', 'Output machine-readable JSON')
+        .action(async (options: { agent: string; dryRun?: boolean; json?: boolean }) => {
+            const json = Boolean(options.json);
+            const root = path.resolve(program.opts().cwd);
+            const dryRun = Boolean(options.dryRun);
+            try {
+                const agent = validateAgent(options.agent);
+                const { bootstrap, agent_profile } = await AtlasForge.optimizeWithReport(root, agent, dryRun);
+                const payload = {
+                    ok: true,
+                    command: 'optimize',
+                    root,
+                    dry_run: dryRun,
+                    agent_profile,
+                    bootstrap,
+                };
+                if (json) {
+                    outputJson(payload);
+                } else {
+                    const mode = dryRun ? chalk.yellow('DRY-RUN') : chalk.green('APPLIED');
+                    console.log(chalk.bold(`Adaptive optimize: ${mode}`));
+                    console.log(chalk.gray(`Agent profile: requested=${agent_profile.requested_agent}, detected=${agent_profile.detected_agent}, applied=${agent_profile.applied_agent}`));
+                    console.log(chalk.gray(`Artifacts: created=${bootstrap.created.length}, skipped=${bootstrap.skipped.length}`));
                 }
             } catch (err) {
                 handleCommandError(err, json);
@@ -229,19 +278,26 @@ export function createProgram() {
     program
         .command('status')
         .description('Show current status and health')
+        .option('-a, --agent <agent>', 'Agent profile (auto, claude, gemini, codex)', 'auto')
         .option('-j, --json', 'Output machine-readable JSON')
-        .action(async (options: { json?: boolean }) => {
+        .action(async (options: { agent: string; json?: boolean }) => {
             const json = Boolean(options.json);
             const root = path.resolve(program.opts().cwd);
             try {
                 ensureInitialized(root);
-                const forge = await AtlasForge.load(root);
-                const status = await forge.status();
+                const agent = validateAgent(options.agent);
+                const forge = await AtlasForge.load(root, agent);
+                const status = await forge.status(agent);
                 const active = await forge.getActiveSession();
                 const payload = {
                     ok: true,
                     command: 'status',
                     snapshot: status.snapshot,
+                    promotion: status.promotion,
+                    agent_profile: status.agent_profile,
+                    agent_readiness_score: status.agent_readiness_score,
+                    level: status.level,
+                    gaps: status.gaps,
                     active_session: active,
                 };
 
@@ -256,6 +312,10 @@ export function createProgram() {
                     }
                     console.log(`Knowledge Base: ${chalk.cyan(status.snapshot.canonical_count)} memories`);
                     console.log(`Staging Area : ${chalk.yellow(status.snapshot.staging_count)} memories`);
+                    const migrationFlag = status.promotion.migration_applied ? chalk.yellow(' (auto-migrated from assisted)') : '';
+                    console.log(`Promote Mode : ${chalk.green(status.promotion.effective_mode)}${migrationFlag}`);
+                    console.log(`Agent Ready : ${chalk.cyan(status.agent_readiness_score)}/10 (${status.level})`);
+                    console.log(`Agent Profile: requested=${status.agent_profile.requested_agent}, detected=${status.agent_profile.detected_agent}, applied=${status.agent_profile.applied_agent}`);
                     console.log('---------------------------\n');
                 }
             } catch (err) {
@@ -336,17 +396,24 @@ export function createProgram() {
     program
         .command('verify')
         .description('Verify workspace readiness for Atlas Forge and MCP integration')
+        .option('-a, --agent <agent>', 'Agent profile (auto, claude, gemini, codex)', 'auto')
         .option('-j, --json', 'Output machine-readable JSON')
-        .action(async (options: { json?: boolean }) => {
+        .action(async (options: { agent: string; json?: boolean }) => {
             const json = Boolean(options.json);
             const root = path.resolve(program.opts().cwd);
             try {
-                const result = await AtlasForge.verify(root);
+                const agent = validateAgent(options.agent);
+                const result = await AtlasForge.verify(root, agent);
                 const payload = {
                     ok: result.ok,
                     command: 'verify',
                     root: result.root,
                     checks: result.checks,
+                    promotion: result.promotion,
+                    agent_profile: result.agent_profile,
+                    agent_readiness_score: result.agent_readiness_score,
+                    level: result.level,
+                    gaps: result.gaps,
                 };
 
                 if (json) {
@@ -358,6 +425,10 @@ export function createProgram() {
                         const icon = check.status === 'pass' ? chalk.green('PASS') : check.status === 'warn' ? chalk.yellow('WARN') : chalk.red('FAIL');
                         console.log(`[${icon}] ${check.name} - ${check.message}`);
                     }
+                    const migrationFlag = result.promotion.migration_applied ? chalk.yellow(' (auto-migrated from assisted)') : '';
+                    console.log(`Promotion mode: ${chalk.green(result.promotion.effective_mode)}${migrationFlag}`);
+                    console.log(`Agent readiness: ${chalk.cyan(result.agent_readiness_score)}/10 (${result.level})`);
+                    console.log(`Agent profile: requested=${result.agent_profile.requested_agent}, detected=${result.agent_profile.detected_agent}, applied=${result.agent_profile.applied_agent}`);
                 }
 
                 if (!result.ok) {

@@ -30,7 +30,7 @@ Add to `claude_desktop_config.json`:
 ## Verify
 
 - Ensure tools are listed by the MCP host.
-- Run `af_init` and then `af_status` in a test workspace.
+- Run `af_init` (optionally with `{ "agent": "claude" }`) and then `af_status` in a test workspace.
 
 ## Common issues
 

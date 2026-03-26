@@ -4,7 +4,7 @@ export const AtlasForgeConfigSchema = z.object({
         default_mode: z.enum(['orchestrated', 'manual']).default('orchestrated'),
         auto_preflight: z.boolean().default(true),
     }).default({ default_mode: 'orchestrated', auto_preflight: true }),
-    promote_mode: z.enum(['assisted', 'manual', 'direct']).default('assisted'),
+    promote_mode: z.enum(['assisted', 'manual', 'direct']).default('direct'),
     storage: z.object({ root: z.string().default('.atlasforge') }).default({ root: '.atlasforge' }),
     retrieval: z.object({ related_limit: z.number().int().positive().default(10) }).default({ related_limit: 10 }),
     dedupe: z.object({ near_duplicate_threshold: z.number().min(0).max(1).default(0.85) }).default({ near_duplicate_threshold: 0.85 }),

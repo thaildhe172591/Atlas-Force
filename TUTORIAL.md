@@ -30,12 +30,20 @@ Lifecycle:
 ### Step 1: Initialize
 
 ```bash
-npx atlas-forge init
+npx atlas-forge init --agent auto
 ```
 
 Expected outcome:
 - `.atlasforge/` created
 - default `config.yaml` available
+- profile-specific root guidance (`CLAUDE.md`/`GEMINI.md`/`AGENTS.md`) auto-created when missing
+- `.atlasforge/skills/` + `.atlasforge/workflows/` seeded when missing
+
+Optional re-sync (non-destructive):
+
+```bash
+npx atlas-forge optimize --agent auto --json
+```
 
 ### Step 2: Start a Task Session
 
@@ -99,6 +107,8 @@ npx atlas-forge doctor --json
 | invalid memory type | unsupported `--type` value | use supported types from `README.md` |
 | doctor failures | malformed entry or bad evidence refs | inspect `doctor.checks`, repair entry, rerun |
 | close does not promote expected records | promote mode or failed checks | run `status` + `doctor` to inspect state |
+
+Note: new workspaces default to `promote_mode: direct`.
 
 ## Next Steps
 

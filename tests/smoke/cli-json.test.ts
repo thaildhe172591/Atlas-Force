@@ -52,15 +52,26 @@ describe('CLI JSON smoke', () => {
         const verifyBeforeInitJson = JSON.parse(verifyBeforeInit.stdout);
         expect(verifyBeforeInitJson.command).toBe('verify');
 
-        const init = await execCli(TEST_ROOT, ['init', '--json']);
+        const init = await execCli(TEST_ROOT, ['init', '--agent', 'codex', '--json']);
         expect(init.code).toBe(0);
         const initJson = JSON.parse(init.stdout);
         expect(initJson.ok).toBe(true);
+        expect(initJson.agent_profile.applied_agent).toBe('codex');
+        expect(Array.isArray(initJson.bootstrap.created)).toBe(true);
+        expect(Array.isArray(initJson.bootstrap.skipped)).toBe(true);
+
+        const optimizeDryRun = await execCli(TEST_ROOT, ['optimize', '--agent', 'codex', '--dry-run', '--json']);
+        expect(optimizeDryRun.code).toBe(0);
+        const optimizeDryRunJson = JSON.parse(optimizeDryRun.stdout);
+        expect(optimizeDryRunJson.command).toBe('optimize');
+        expect(optimizeDryRunJson.dry_run).toBe(true);
 
         const verify = await execCli(TEST_ROOT, ['verify', '--json']);
         expect(verify.code).toBe(0);
         const verifyJson = JSON.parse(verify.stdout);
         expect(verifyJson.ok).toBe(true);
+        expect(verifyJson.agent_profile.applied_agent).toBe('codex');
+        expect(typeof verifyJson.agent_readiness_score).toBe('number');
 
         const start = await execCli(TEST_ROOT, ['start', 'Smoke task', '--json']);
         expect(start.code).toBe(0);
@@ -90,12 +101,16 @@ describe('CLI JSON smoke', () => {
         expect(close.code).toBe(0);
         const closeJson = JSON.parse(close.stdout);
         expect(closeJson.command).toBe('close');
-        expect(closeJson.promoted_count + closeJson.skipped_count).toBeGreaterThan(0);
+        expect(closeJson.promoted_count).toBeGreaterThan(0);
 
         const status = await execCli(TEST_ROOT, ['status', '--json']);
         expect(status.code).toBe(0);
         const statusJson = JSON.parse(status.stdout);
-        expect(statusJson.snapshot.staging_count + statusJson.snapshot.canonical_count).toBeGreaterThan(0);
+        expect(statusJson.snapshot.canonical_count).toBeGreaterThan(0);
+        expect(statusJson.promotion.effective_mode).toBe('direct');
+        expect(statusJson.agent_profile.applied_agent).toBe('codex');
+        expect(typeof statusJson.agent_readiness_score).toBe('number');
+        expect(Array.isArray(statusJson.gaps)).toBe(true);
 
         const search = await execCli(TEST_ROOT, ['search', 'Smoke', '--json']);
         expect(search.code).toBe(0);

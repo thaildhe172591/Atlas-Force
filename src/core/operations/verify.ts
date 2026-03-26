@@ -1,10 +1,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as yaml from 'yaml';
-import type { VerifyCheck, VerifyResult } from '../models/index.js';
-import { AtlasForgeConfigSchema } from '../schemas/config.js';
+import type { AgentSelection, VerifyCheck, VerifyResult } from '../models/index.js';
+import { ConfigLoader, DEFAULTS, evaluateAgentReadiness } from '../config/index.js';
 
-export async function verifyOperation(root: string): Promise<VerifyResult> {
+export async function verifyOperation(root: string, requestedAgent: AgentSelection = 'auto'): Promise<VerifyResult> {
     const checks: VerifyCheck[] = [];
     const atlasRoot = path.join(root, '.atlasforge');
     const requiredDirs = ['staging', 'canonical', 'indexes', 'sessions'];
@@ -26,14 +25,32 @@ export async function verifyOperation(root: string): Promise<VerifyResult> {
     }
 
     const configPath = path.join(atlasRoot, 'config.yaml');
+    let promotion = {
+        configured_mode: DEFAULTS.promote_mode,
+        effective_mode: DEFAULTS.promote_mode,
+        migration_applied: false,
+    } as VerifyResult['promotion'];
+
     if (!fs.existsSync(configPath)) {
         checks.push({ name: 'config', status: 'fail', message: 'config.yaml is missing' });
     } else {
         try {
-            const content = fs.readFileSync(configPath, 'utf-8');
-            const parsed = yaml.parse(content);
-            AtlasForgeConfigSchema.parse(parsed);
+            const load = await ConfigLoader.loadStrictWithMeta(root);
+            promotion = load.promotion_health;
             checks.push({ name: 'config', status: 'pass', message: 'config.yaml is readable and valid' });
+            if (promotion.migration_applied) {
+                checks.push({
+                    name: 'promote-mode',
+                    status: 'warn',
+                    message: promotion.migration_note || 'Legacy promote_mode=assisted was auto-migrated to direct.',
+                });
+            } else {
+                checks.push({
+                    name: 'promote-mode',
+                    status: 'pass',
+                    message: `promote_mode is ${promotion.effective_mode}`,
+                });
+            }
         } catch (err: any) {
             checks.push({ name: 'config', status: 'fail', message: `config.yaml is invalid: ${err.message}` });
         }
@@ -65,5 +82,15 @@ export async function verifyOperation(root: string): Promise<VerifyResult> {
     }
 
     const ok = !checks.some((c) => c.status === 'fail');
-    return { ok, root, checks };
+    const readiness = evaluateAgentReadiness(root, requestedAgent, ok, promotion);
+    return {
+        ok,
+        root,
+        checks,
+        promotion,
+        agent_profile: readiness.agent_profile,
+        agent_readiness_score: readiness.agent_readiness_score,
+        level: readiness.level,
+        gaps: readiness.gaps,
+    };
 }

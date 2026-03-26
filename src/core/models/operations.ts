@@ -2,6 +2,26 @@ import type { MemoryEntry } from './entry.js';
 import type { MemoryType } from './states.js';
 import type { TaskSession } from './task.js';
 import type { DoctorResult } from './diagnostics.js';
+import type { PromotionModeHealth } from './config.js';
+
+export type AgentKind = 'claude' | 'gemini' | 'codex';
+export type AgentSelection = AgentKind | 'auto';
+export type AgentConfidence = 'low' | 'medium' | 'high';
+
+export interface AgentProfile {
+    requested_agent: AgentSelection;
+    detected_agent: AgentKind;
+    applied_agent: AgentKind;
+    confidence: AgentConfidence;
+    signals: string[];
+}
+
+export interface AgentReadiness {
+    agent_profile: AgentProfile;
+    agent_readiness_score: number;
+    level: 'basic' | 'good' | 'excellent';
+    gaps: string[];
+}
 
 export interface AddMemoryOptions {
     memory_type: MemoryType;
@@ -64,6 +84,15 @@ export interface StatusSnapshot {
     last_reindex_at?: string;
 }
 
+export interface StatusResult {
+    snapshot: StatusSnapshot;
+    promotion: PromotionModeHealth;
+    agent_profile: AgentProfile;
+    agent_readiness_score: number;
+    level: 'basic' | 'good' | 'excellent';
+    gaps: string[];
+}
+
 export interface PromoteOptions {
     entry_ids?: string[];
 }
@@ -91,4 +120,15 @@ export interface VerifyResult {
     ok: boolean;
     root: string;
     checks: VerifyCheck[];
+    promotion: PromotionModeHealth;
+    agent_profile: AgentProfile;
+    agent_readiness_score: number;
+    level: 'basic' | 'good' | 'excellent';
+    gaps: string[];
+}
+
+export interface InitBootstrapReport {
+    created: string[];
+    skipped: string[];
+    dry_run?: boolean;
 }

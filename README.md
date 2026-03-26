@@ -11,6 +11,7 @@ Local-first memory orchestration for AI agents working in real codebases.
 Atlas Forge gives AI agents a persistent, inspectable memory layer inside your repository.
 
 - Local data in `.atlasforge/`
+- Adaptive agent bootstrap on `init --agent <auto|claude|gemini|codex>`
 - JSONL storage for transparency
 - Structured lifecycle: `start -> add -> doctor -> close`
 - Dual interface: CLI and MCP
@@ -24,7 +25,7 @@ npm install @thaild12042003/atlas-forge
 ## 60-second Quick Start
 
 ```bash
-npx atlas-forge init
+npx atlas-forge init --agent auto
 npx atlas-forge start "Refactor auth module"
 npx atlas-forge add --type decision --title "JWT over session" --summary "Stateless scaling requirement"
 npx atlas-forge doctor
@@ -32,20 +33,29 @@ npx atlas-forge close "Refactor complete"
 npx atlas-forge status
 ```
 
+`init` and `optimize` are non-destructive: existing guidance/skill/workflow files are preserved.
+
 ## CLI Surface
 
 All commands support `--json` for machine-readable automation.
 
 | Command | Purpose |
 |---|---|
-| `atlas-forge init` | Initialize `.atlasforge` structure |
+| `atlas-forge init [--agent]` | Initialize `.atlasforge` and adaptive agent artifacts |
+| `atlas-forge optimize [--agent] [--dry-run]` | Re-sync adaptive artifacts without overwriting user files |
 | `atlas-forge start <summary>` | Start a task session |
 | `atlas-forge add --title --summary [--type]` | Add memory to staging |
 | `atlas-forge doctor` | Run diagnostics on staged entries |
 | `atlas-forge close <summary>` | Close active task and promote |
 | `atlas-forge search <query> [--limit]` | Search canonical memory |
-| `atlas-forge status` | Show snapshot counts + active session |
-| `atlas-forge verify` | Verify workspace readiness |
+| `atlas-forge status [--agent]` | Show snapshot + promotion + agent readiness |
+| `atlas-forge verify [--agent]` | Verify workspace and report agent readiness score |
+
+Promotion defaults to `direct` so valid staged entries are promoted to canonical on `close`.
+
+Readiness fields in JSON output:
+- `agent_profile` (`requested_agent`, `detected_agent`, `applied_agent`, `confidence`, `signals`)
+- `agent_readiness_score` (0-10), `level` (`basic|good|excellent`), `gaps[]`
 
 ### Supported Memory Types
 
@@ -84,7 +94,7 @@ Alternative (if your MCP host supports direct binary execution):
 1. Start MCP host with the config above.
 2. Confirm tools are listed:
    `af_init`, `af_start_task`, `af_add_memory`, `af_search`, `af_close_task`, `af_status`.
-3. Run `af_init` then `af_status` in a test workspace.
+3. Run `af_init` (optionally `{ "agent": "claude" }`) then `af_status` in a test workspace.
 
 ## Guides
 

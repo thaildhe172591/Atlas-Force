@@ -7,9 +7,12 @@ Use Atlas Forge via CLI JSON mode and `.atlasforge` as local memory grounding.
 ## Setup
 
 ```bash
-npx atlas-forge init
+npx atlas-forge init --agent codex
+npx atlas-forge optimize --agent codex --json
 npx atlas-forge verify --json
 ```
+
+`init` auto-creates `AGENTS.md`, `.atlasforge/skills/`, and `.atlasforge/workflows/` (non-destructive if files already exist).
 
 ## Workflow
 

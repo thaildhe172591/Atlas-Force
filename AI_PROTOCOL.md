@@ -5,13 +5,17 @@ This protocol defines how Claude, Cursor, Codex, Gemini, and Antigravity should 
 ## Core rules
 
 - Treat `.atlasforge/` as the project memory source of truth.
+- Run `atlas-forge init --agent auto` once to auto-bootstrap profile-specific guidance + skills/workflows.
 - Always search existing memory before large changes.
 - Always close the task with a summary when implementation is done.
 - Prefer machine-readable output (`--json`) for automation.
+- Default promotion mode is `direct` (valid entries move to canonical on `close`).
 
 ## Standard command workflow (CLI-first)
 
 ```bash
+atlas-forge init --agent auto --json
+atlas-forge optimize --agent auto --json
 atlas-forge status --json
 atlas-forge search "<query>" --json
 atlas-forge start "<task summary>" --json
