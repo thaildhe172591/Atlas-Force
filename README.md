@@ -6,7 +6,7 @@ Local-first memory orchestration for AI agents in real repositories.
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D20-green.svg?style=flat-square)](https://nodejs.org)
 
-## What's New in 0.4.6
+## What's New in 0.4.7
 
 - EN: Curated Superpowers vendor subset for professional profile, smaller and cleaner package surface.
 - VN: Bộ vendor đã được curate có chủ đích cho profile professional, giảm nhiễu và nhẹ hơn khi phát hành.

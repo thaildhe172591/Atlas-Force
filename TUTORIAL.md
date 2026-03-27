@@ -2,7 +2,7 @@
 
 This guide is optimized for fast onboarding and production-safe usage.
 
-## 0.4.6 Highlights
+## 0.4.7 Highlights
 
 - EN: Curated professional vendor kit for smaller, cleaner release payloads.
 - VN: Bộ professional kit đã được curate có chủ đích, giúp package gọn và ổn định hơn.

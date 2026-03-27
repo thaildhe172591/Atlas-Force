@@ -2,6 +2,11 @@
  
 All notable changes to this project are documented in this file.
 
+## 0.4.7 - 2026-03-27
+
+### Changed
+- Synced CLI, MCP, managed artifact, and release-facing docs version strings to `0.4.7`.
+
 ## 0.4.6 - 2026-03-27
 
 ### Added

@@ -8,7 +8,7 @@ Final gate before publishing Atlas Forge.
 - Minor (`x.Y.z`): backward-compatible features.
 - Major (`X.y.z`): breaking contracts.
 
-Current target: `0.4.6` (patch).
+Current target: `0.4.7` (patch).
 
 ## 2) Mandatory Pre-Tag Gate
 
@@ -49,7 +49,7 @@ npm pkg get name version files
 
 Expected:
 - `name`: `@thaild12042003/atlas-forge`
-- `version`: `0.4.6`
+- `version`: `0.4.7`
 - `files` includes `vendor/superpowers-curated`
 
 Check GitHub package prep script path:
@@ -90,5 +90,5 @@ npx -y @thaild12042003/atlas-forge atlas-forge verify --json
 ```
 
 Manual checks:
-- GitHub Release exists for `v0.4.6`
+- GitHub Release exists for `v0.4.7`
 - GitHub Packages tab shows `@thaildhe172591/atlas-forge`

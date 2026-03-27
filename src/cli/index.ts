@@ -5,10 +5,9 @@ import chalk from 'chalk';
 import { ZodError } from 'zod';
 import { AtlasForge } from '../core/facade.js';
 import { ADAPTIVE_AGENTS, isAgentSelection } from '../core/config/agent-ready.js';
+import { getAtlasForgeVersion } from '../core/config/version.js';
 import { MEMORY_TYPES } from '../core/models/states.js';
 import type { AgentSelection } from '../core/models/index.js';
-
-const CLI_VERSION = '0.4.6';
 
 class CliValidationError extends Error {}
 
@@ -90,7 +89,7 @@ export function createProgram() {
     program
         .name('atlas-forge')
         .description('Atlas Forge CLI - The Persistent Knowledge Orchestration Engine')
-        .version(CLI_VERSION)
+        .version(getAtlasForgeVersion())
         .option('-c, --cwd <path>', 'Working directory', process.cwd());
 
     program

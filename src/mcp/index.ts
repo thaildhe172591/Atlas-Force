@@ -5,9 +5,8 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { AtlasForge } from '../core/facade.js';
+import { getAtlasForgeVersion } from '../core/config/version.js';
 import { MEMORY_TYPES } from '../core/models/states.js';
-
-const MCP_VERSION = '0.4.6';
 const MCP_AGENT_OPTIONS = ['auto', 'all', 'claude', 'gemini', 'codex'] as const;
 
 export const MCP_MEMORY_TYPES = [...MEMORY_TYPES];
@@ -146,7 +145,7 @@ export class AtlasForgeMcpServer {
         this.server = new Server(
             {
                 name: 'atlas-forge',
-                version: MCP_VERSION,
+                version: getAtlasForgeVersion(),
             },
             {
                 capabilities: {

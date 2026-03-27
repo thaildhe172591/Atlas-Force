@@ -1,6 +1,6 @@
 # Agent Support Matrix
 
-## Runtime Matrix (0.4.6)
+## Runtime Matrix (0.4.7)
 
 | Agent | Primary interface | First command | Next command | Expected readiness signal |
 |---|---|---|---|---|

@@ -14,12 +14,12 @@ import type {
     InitBootstrapReport,
 } from '../models/operations.js';
 import type { AtlasForgeConfig, ProfileMode, PromotionModeHealth, RuntimePatchState } from '../models/config.js';
+import { getAtlasForgeVersion } from './version.js';
 import { DEFAULTS } from './defaults.js';
 
 export const ADAPTIVE_AGENTS = ['claude', 'gemini', 'codex'] as const;
 const AGENT_SELECTIONS = ['auto', 'all', ...ADAPTIVE_AGENTS] as const;
 const GENERATED_BY = 'atlas-forge' as const;
-const MANAGED_VERSION = '0.4.6';
 const CANONICAL_ID = 'atlas-forge';
 const DISPLAY_NAME = 'Atlas Forge';
 const INVOCATION_ALIASES = ['/atlas', '$Atlas Forge', 'atlas-forge'];
@@ -587,7 +587,7 @@ function renderManagedFile(artifact: DesiredArtifact): string {
         generated_by: GENERATED_BY,
         artifact_id: normalized.id,
         managed: true,
-        version: MANAGED_VERSION,
+        version: getAtlasForgeVersion(),
         canonical_id: CANONICAL_ID,
         display_name: DISPLAY_NAME,
         management_tier: normalized.managementTier,
@@ -986,7 +986,7 @@ function toMetadata(artifact: DesiredArtifact, status: EntryArtifactMetadata['st
         management_tier: normalized.managementTier,
         atlas_owner: normalized.atlasOwner,
         generated_by: GENERATED_BY,
-        version: MANAGED_VERSION,
+        version: getAtlasForgeVersion(),
         status,
         source_provenance: normalized.sourceProvenance,
         upstream_path: normalized.upstreamPath,
