@@ -5,6 +5,33 @@ import { AtlasForgeConfigSchema } from '../schemas/config.js';
 import { DEFAULTS } from './defaults.js';
 import type { AtlasForgeConfig, ConfigLoadResult } from '../models/config.js';
 
+function normalizeRuntimePatchState(value: unknown): AtlasForgeConfig['runtime_patch_state']['codex'] {
+    if (value === 'required' || value === 'applied' || value === 'skipped') {
+        return value;
+    }
+    return 'required';
+}
+
+function sanitizeRawConfig(raw: Record<string, unknown>): Record<string, unknown> {
+    const normalized = { ...raw };
+    const rawProfileMode = normalized.profile_mode;
+    if (rawProfileMode !== 'core' && rawProfileMode !== 'professional') {
+        normalized.profile_mode = DEFAULTS.profile_mode;
+    }
+
+    const runtimePatchRaw =
+        normalized.runtime_patch_state && typeof normalized.runtime_patch_state === 'object'
+            ? (normalized.runtime_patch_state as Record<string, unknown>)
+            : {};
+    normalized.runtime_patch_state = {
+        codex: normalizeRuntimePatchState(runtimePatchRaw.codex),
+        claude: normalizeRuntimePatchState(runtimePatchRaw.claude),
+        gemini: normalizeRuntimePatchState(runtimePatchRaw.gemini),
+    };
+
+    return normalized;
+}
+
 export class ConfigLoader {
     static async load(root: string): Promise<AtlasForgeConfig> {
         const result = await this.loadWithMeta(root);
@@ -45,7 +72,7 @@ export class ConfigLoader {
 
         const content = fs.readFileSync(configPath, 'utf-8');
         const parsed = yaml.parse(content);
-        if (!parsed || typeof parsed !== 'object') {
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
             throw new Error('config.yaml must contain a YAML object');
         }
 
@@ -59,7 +86,7 @@ export class ConfigLoader {
             raw.promote_mode = 'direct';
         }
 
-        const config = AtlasForgeConfigSchema.parse({ ...DEFAULTS, ...raw }) as AtlasForgeConfig;
+        const config = AtlasForgeConfigSchema.parse({ ...DEFAULTS, ...sanitizeRawConfig(raw) }) as AtlasForgeConfig;
         if (legacyAssisted) {
             fs.writeFileSync(configPath, yaml.stringify(config), 'utf-8');
         }

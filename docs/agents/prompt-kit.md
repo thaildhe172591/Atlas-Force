@@ -1,24 +1,24 @@
 # Agent Prompt Kit
 
-Use these prompts as copy-paste starting points. Keep `--json` on when you want machine-readable output.
+Copy-paste prompts for Atlas Forge workflows. Prefer `--json` for deterministic agent output.
 
 ## Quick Pick
 
-| Need | Best agent | First move |
+| Need | Best agent path | First move |
 |---|---|---|
-| IDE-native memory | Claude / Cursor | `af_init` |
-| CLI-first repo work | Codex / Gemini | `init --agent ... --json` |
-| Task orchestration | Antigravity | `init --agent auto --json` |
+| MCP IDE workflow | Claude / Cursor | `af_init` then `af_status` |
+| CLI implementation workflow | Codex / Gemini | `init --agent <runtime> --json` then `verify --json` |
+| Orchestration and long task | Antigravity | `init --agent auto --json` then `status --json` |
 
-## Task Prompts
+## Core Prompts
 
-### Repo Scan
+### Repo Scan (read-only)
 
 ```text
 /init
 Scan the repo before changing code.
 Return architecture, entrypoints, scripts, config files, top risks, and a short plan.
-Do not edit files yet.
+Do not edit files yet. Do not write memory.
 ```
 
 ### Bug Fix
@@ -26,108 +26,65 @@ Do not edit files yet.
 ```text
 Use Atlas Forge.
 Flow: status -> search -> start -> fix -> add memory -> doctor -> close.
-Identify root cause first, patch the minimum safe change, and run the relevant tests before closing.
+Find root cause first, patch the minimum safe change, and run relevant tests before close.
 ```
 
 ### Feature Work
 
 ```text
 Use Atlas Forge for this feature.
-Check status and search first.
-Keep the implementation minimal, preserve existing behavior, and capture key decisions with code-pattern entries.
-Finish with doctor and close.
+Run verify/status in JSON first, then implement the smallest safe change.
+Capture only reusable decisions/patterns. Run doctor before close.
 ```
 
-### Release Polish
+### Publish / Release
 
 ```text
 Use Atlas Forge in release mode.
-Check status, verify, and docs first.
-Improve user-facing guidance and examples without changing core behavior.
-Keep the output concise and publish-ready.
+Check verify/status first and include runtime_readiness_dashboard in your summary.
+Then run release gate commands and prepare concise release notes.
 ```
 
-## Agent-Specific Launch Lines
+## Agent Launch Lines
 
-### Claude
+### Claude / Cursor
 
 ```text
 Use Atlas Forge through MCP.
 Flow: af_init -> af_status -> af_search -> af_start_task -> af_add_memory -> af_close_task.
-Keep the session summary concise.
-```
-
-### Cursor
-
-```text
-Use Atlas Forge through MCP inside the IDE.
-Open with af_init and af_status, then search before editing.
-Capture important decisions with af_add_memory and close with af_close_task.
 ```
 
 ### Codex
 
 ```text
-Use Atlas Forge as the repo memory system.
+Use Atlas Forge as repo memory system.
 Flow: status -> search -> start -> implement -> add memories -> doctor -> close.
-Prefer --json and do not close until doctor passes.
+Prefer --json and include runtime_readiness_dashboard when reporting readiness.
 ```
 
 ### Gemini
 
 ```text
 Use Atlas Forge CLI-first.
-Start with init --agent gemini --json, then verify and status.
-Keep changes minimal, record decisions, and close with a short outcome summary.
+Start with init/verify/status in JSON mode.
+Keep changes minimal and finish with doctor + close.
 ```
 
 ### Antigravity
 
 ```text
-Use Atlas Forge for task orchestration.
-Start with init --agent auto --json, then status, search, and doctor before close.
-Prioritize clean handoffs, diagnostics, and promotion discipline.
+Use Atlas Forge for orchestration.
+Start with init + verify/status, then run lifecycle with doctor before close.
 ```
 
 ## Shared Rules
 
-- Start with `status` or `af_status` before editing.
-- Search first when the task has existing context.
-- Record decisions with `code-pattern` or `decision`.
+- Start with `status` or `af_status`.
+- Search before implementation when context exists.
+- Keep durable memory focused on reusable knowledge.
 - Run `doctor` before `close`.
-- Use `verify --json` when you need readiness and setup checks.
-
-## Skill Combos
-
-Use these when you want Atlas Forge plus a focused skill workflow:
-
-| Situation | Combine with these skills | What it gives you |
-|---|---|---|
-| New feature or UX change | `brainstorming` -> `writing-plans` | Clear design before code, then a step-by-step plan |
-| Hard bug or flaky test | `systematic-debugging` -> `verification-before-completion` | Root-cause analysis plus evidence-based completion |
-| Release or publish work | `verification-before-completion` -> `git-ops-pro` | Safer checks before commit, tag, or publish |
-| Large repo onboarding | `documentation-templates` -> `workflow-status` | Better docs shape and clearer progress reporting |
-
-### Example: Feature + Brainstorming
-
-```text
-Use Atlas Forge and the brainstorming skill.
-First scan the repo, describe 2-3 approaches, and ask for design approval.
-After approval, use Atlas Forge status/search/start, then implement, add memory, doctor, and close.
-```
-
-### Example: Bug Fix + Systematic Debugging
-
-```text
-Use Atlas Forge and the systematic-debugging skill.
-Investigate the root cause first, reproduce the issue, and only then patch the minimum change.
-Before closing, run verification commands and record the result in Atlas Forge.
-```
-
-### Example: Release + Verification
-
-```text
-Use Atlas Forge with verification-before-completion and git-ops-pro.
-Check status, verify readiness, confirm the diff, and only then commit or publish.
-Prefer concise release notes and a clean close summary.
-```
+- For readiness reporting, include:
+  - `profile`
+  - `selected_runtime_ready`
+  - `professional_kit_ready`
+  - `runtime_readiness_dashboard`

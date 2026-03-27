@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import * as yaml from 'yaml';
 import type {
     AgentConfidence,
@@ -12,25 +13,60 @@ import type {
     EntryArtifactMetadata,
     InitBootstrapReport,
 } from '../models/operations.js';
-import type { PromotionModeHealth } from '../models/config.js';
+import type { AtlasForgeConfig, ProfileMode, PromotionModeHealth, RuntimePatchState } from '../models/config.js';
 import { DEFAULTS } from './defaults.js';
 
 export const ADAPTIVE_AGENTS = ['claude', 'gemini', 'codex'] as const;
 const AGENT_SELECTIONS = ['auto', 'all', ...ADAPTIVE_AGENTS] as const;
 const GENERATED_BY = 'atlas-forge' as const;
-const MANAGED_VERSION = '0.4.4';
+const MANAGED_VERSION = '0.4.6';
 const CANONICAL_ID = 'atlas-forge';
 const DISPLAY_NAME = 'Atlas Forge';
 const INVOCATION_ALIASES = ['/atlas', '$Atlas Forge', 'atlas-forge'];
+const VENDOR_PROVENANCE = 'vendor:obra/superpowers#curated-v1';
+const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+const VENDOR_ROOT_CANDIDATES = [
+    path.join(PACKAGE_ROOT, 'vendor', 'superpowers-curated'),
+    path.join(PACKAGE_ROOT, 'vendor', 'superpowers'),
+];
+const CURATED_VENDOR_SKILLS = [
+    'brainstorming',
+    'dispatching-parallel-agents',
+    'executing-plans',
+    'finishing-a-development-branch',
+    'requesting-code-review',
+    'systematic-debugging',
+    'test-driven-development',
+    'verification-before-completion',
+    'writing-plans',
+] as const;
+const CURATED_VENDOR_COMMANDS = ['brainstorm.md', 'write-plan.md', 'execute-plan.md'] as const;
+const CURATED_VENDOR_HOOKS = ['hooks.json', 'hooks-cursor.json', 'session-start', 'run-hook.cmd'] as const;
+const RUNTIME_PATCH_PATHS: Record<AgentKind, string> = {
+    claude: '.atlasforge/install/claude/claude-desktop-config.patch.json',
+    codex: '.atlasforge/install/codex/atlas-forge-skill.md',
+    gemini: '.atlasforge/install/gemini/gemini-commands.md',
+};
 
 type ArtifactCategory = 'entrypoints' | 'bridges' | 'external_patch_files';
+type ManagementTier = 'atlas-managed' | 'vendor-managed' | 'user-owned';
+type InstallMode = 'repo-local-only' | 'external-patch' | 'guidance-only' | 'manual-install' | 'unsupported';
+type MergeStrategy = 'replace-if-unmodified' | 'drift-report';
 
 type DesiredArtifact = {
     id: string;
     kind: EntryArtifactKind;
+    displayName?: string;
     category: ArtifactCategory;
     path: string;
     agentTargets: AgentKind[];
+    managementTier?: ManagementTier;
+    atlasOwner?: 'atlas' | 'vendor';
+    sourceProvenance?: string;
+    upstreamPath?: string;
+    installMode?: InstallMode;
+    mergeStrategy?: MergeStrategy;
+    conflictPolicy?: 'preserve-user';
     invocationAliases?: string[];
     body: string;
     legacyContents?: string[];
@@ -43,6 +79,13 @@ type ManagedHeader = {
     version: string;
     canonical_id: string;
     display_name: string;
+    management_tier: ManagementTier;
+    atlas_owner: 'atlas' | 'vendor';
+    source_provenance: string;
+    upstream_path?: string;
+    install_mode: InstallMode;
+    merge_strategy: MergeStrategy;
+    conflict_policy: 'preserve-user';
     invocation_aliases: string[];
     content_sha256: string;
 };
@@ -56,6 +99,24 @@ type BootstrapOptions = {
     requestedAgent?: AgentSelection;
     dryRun?: boolean;
 };
+
+type WorkspacePolicy = {
+    profile_mode: ProfileMode;
+    runtime_patch_state: Record<AgentKind, RuntimePatchState>;
+};
+
+function normalizedArtifact(artifact: DesiredArtifact): Required<Omit<DesiredArtifact, 'legacyContents' | 'upstreamPath'>> & Pick<DesiredArtifact, 'legacyContents' | 'upstreamPath'> {
+    return {
+        ...artifact,
+        displayName: artifact.displayName ?? artifact.id,
+        managementTier: artifact.managementTier ?? 'atlas-managed',
+        atlasOwner: artifact.atlasOwner ?? 'atlas',
+        sourceProvenance: artifact.sourceProvenance ?? 'atlas-authored',
+        installMode: artifact.installMode ?? (artifact.category === 'external_patch_files' ? 'external-patch' : 'repo-local-only'),
+        mergeStrategy: artifact.mergeStrategy ?? 'replace-if-unmodified',
+        conflictPolicy: artifact.conflictPolicy ?? 'preserve-user',
+    };
+}
 
 function sharedSkillBody() {
     return `# ${DISPLAY_NAME}
@@ -92,6 +153,10 @@ Use ${DISPLAY_NAME} as the shared memory and workflow layer for this repository.
   3. One explicit bridge policy
   4. User task content
 - If multiple bridges are requested, the first explicit bridge wins and the rest should be ignored.
+
+## Reconciliation policy
+- Managed files use file-level ownership in v1.
+- Formatting-only changes are intentionally treated as drift for conservative safety.
 `;
 }
 
@@ -363,22 +428,161 @@ Use .atlasforge/skills/atlas-forge.md as the shared workflow layer, then apply .
 `;
 }
 
+function defaultWorkspacePolicy(): WorkspacePolicy {
+    return {
+        profile_mode: DEFAULTS.profile_mode,
+        runtime_patch_state: {
+            codex: DEFAULTS.runtime_patch_state.codex,
+            claude: DEFAULTS.runtime_patch_state.claude,
+            gemini: DEFAULTS.runtime_patch_state.gemini,
+        },
+    };
+}
+
+function normalizeRuntimePatchState(value: unknown): RuntimePatchState {
+    if (value === 'required' || value === 'applied' || value === 'skipped') {
+        return value;
+    }
+    return 'required';
+}
+
+function readWorkspacePolicy(root: string): WorkspacePolicy {
+    const configPath = path.join(root, '.atlasforge', 'config.yaml');
+    if (!fs.existsSync(configPath)) {
+        return defaultWorkspacePolicy();
+    }
+    try {
+        const parsed = yaml.parse(fs.readFileSync(configPath, 'utf-8')) as Partial<AtlasForgeConfig> | null;
+        return {
+            profile_mode: parsed?.profile_mode === 'professional' ? 'professional' : 'core',
+            runtime_patch_state: {
+                codex: normalizeRuntimePatchState(parsed?.runtime_patch_state?.codex),
+                claude: normalizeRuntimePatchState(parsed?.runtime_patch_state?.claude),
+                gemini: normalizeRuntimePatchState(parsed?.runtime_patch_state?.gemini),
+            },
+        };
+    } catch {
+        return defaultWorkspacePolicy();
+    }
+}
+
+function readTextSafe(filePath: string): string | null {
+    try {
+        return fs.readFileSync(filePath, 'utf-8');
+    } catch {
+        return null;
+    }
+}
+
+function resolveVendorSuperpowersRoot(): string | null {
+    for (const candidate of VENDOR_ROOT_CANDIDATES) {
+        if (fs.existsSync(candidate)) {
+            return candidate;
+        }
+    }
+    return null;
+}
+
+function vendorSuperpowerArtifacts(): DesiredArtifact[] {
+    const vendorRoot = resolveVendorSuperpowersRoot();
+    if (!vendorRoot) {
+        return [];
+    }
+    const artifacts: DesiredArtifact[] = [];
+    for (const skillName of CURATED_VENDOR_SKILLS) {
+        const skillPath = path.join(vendorRoot, 'skills', skillName, 'SKILL.md');
+        const content = readTextSafe(skillPath);
+        if (!content) continue;
+        artifacts.push({
+            id: `vendor-superpower-skill-${skillName}`,
+            kind: 'vendor-skill',
+            displayName: `Superpower skill: ${skillName}`,
+            category: 'entrypoints',
+            path: `.atlasforge/skills/superpowers/${skillName}.md`,
+            agentTargets: [...ADAPTIVE_AGENTS],
+            managementTier: 'vendor-managed',
+            atlasOwner: 'vendor',
+            sourceProvenance: VENDOR_PROVENANCE,
+            upstreamPath: `skills/${skillName}/SKILL.md`,
+            installMode: 'repo-local-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
+            invocationAliases: [`$${skillName}`],
+            body: content,
+        });
+    }
+
+    for (const fileName of CURATED_VENDOR_COMMANDS) {
+        const commandPath = path.join(vendorRoot, 'commands', fileName);
+        const content = readTextSafe(commandPath);
+        if (!content) continue;
+        artifacts.push({
+            id: `vendor-superpower-command-${fileName.replace(/\.md$/, '')}`,
+            kind: 'command-template',
+            displayName: `Superpower command: ${fileName}`,
+            category: 'entrypoints',
+            path: `.atlasforge/commands/superpowers/${fileName}`,
+            agentTargets: [...ADAPTIVE_AGENTS],
+            managementTier: 'vendor-managed',
+            atlasOwner: 'vendor',
+            sourceProvenance: VENDOR_PROVENANCE,
+            upstreamPath: `commands/${fileName}`,
+            installMode: 'repo-local-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
+            body: content,
+        });
+    }
+
+    for (const fileName of CURATED_VENDOR_HOOKS) {
+        const hookPath = path.join(vendorRoot, 'hooks', fileName);
+        const content = readTextSafe(hookPath);
+        if (!content) continue;
+        artifacts.push({
+            id: `vendor-superpower-hook-${fileName.replace(/\.[^/.]+$/, '')}`,
+            kind: 'hook-template',
+            displayName: `Superpower hook template: ${fileName}`,
+            category: 'entrypoints',
+            path: `.atlasforge/hooks/superpowers/${fileName}`,
+            agentTargets: [...ADAPTIVE_AGENTS],
+            managementTier: 'vendor-managed',
+            atlasOwner: 'vendor',
+            sourceProvenance: VENDOR_PROVENANCE,
+            upstreamPath: `hooks/${fileName}`,
+            installMode: 'guidance-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
+            body: content,
+        });
+    }
+
+    return artifacts;
+}
+
 function contentHash(body: string): string {
     return createHash('sha256').update(body, 'utf-8').digest('hex');
 }
 
 function renderManagedFile(artifact: DesiredArtifact): string {
+    const normalized = normalizedArtifact(artifact);
     const header: ManagedHeader = {
         generated_by: GENERATED_BY,
-        artifact_id: artifact.id,
+        artifact_id: normalized.id,
         managed: true,
         version: MANAGED_VERSION,
         canonical_id: CANONICAL_ID,
         display_name: DISPLAY_NAME,
-        invocation_aliases: artifact.invocationAliases ?? [],
-        content_sha256: contentHash(artifact.body),
+        management_tier: normalized.managementTier,
+        atlas_owner: normalized.atlasOwner,
+        source_provenance: normalized.sourceProvenance,
+        upstream_path: normalized.upstreamPath,
+        install_mode: normalized.installMode,
+        merge_strategy: normalized.mergeStrategy,
+        conflict_policy: normalized.conflictPolicy,
+        invocation_aliases: normalized.invocationAliases ?? [],
+        content_sha256: contentHash(normalized.body),
     };
-    return `---\n${yaml.stringify(header).trimEnd()}\n---\n\n${artifact.body}`;
+    return `---\n${yaml.stringify(header).trimEnd()}\n---\n\n${normalized.body}`;
 }
 
 function parseManagedFile(text: string): ParsedManagedFile {
@@ -408,156 +612,232 @@ function hasUserDrift(header: ManagedHeader | null, parsed: ParsedManagedFile): 
     return header.content_sha256 !== contentHash(parsed.body);
 }
 
-function expectedAgents(requestedAgent: AgentSelection, appliedAgent: AgentKind): AgentKind[] {
+function expectedAgents(
+    requestedAgent: AgentSelection,
+    appliedAgent: AgentKind,
+    profileMode: ProfileMode,
+    runtimeOnly = false,
+): AgentKind[] {
+    if (runtimeOnly) return [appliedAgent];
+    if (profileMode === 'professional') return [...ADAPTIVE_AGENTS];
     return requestedAgent === 'all' ? [...ADAPTIVE_AGENTS] : [appliedAgent];
 }
 
-function desiredArtifactsFor(requestedAgent: AgentSelection, appliedAgent: AgentKind): DesiredArtifact[] {
-    const agents = expectedAgents(requestedAgent, appliedAgent);
+function desiredArtifactsFor(
+    requestedAgent: AgentSelection,
+    appliedAgent: AgentKind,
+    profileMode: ProfileMode,
+    runtimeOnly = false,
+): DesiredArtifact[] {
+    const agents = expectedAgents(requestedAgent, appliedAgent, profileMode, runtimeOnly);
     const artifacts: DesiredArtifact[] = [
         {
             id: 'atlas-forge-root-shared',
             kind: 'agent-guide',
+            displayName: 'Atlas Forge shared launch file',
             category: 'entrypoints',
             path: 'AGENTS.md',
             agentTargets: [...ADAPTIVE_AGENTS],
             invocationAliases: INVOCATION_ALIASES,
+            installMode: 'repo-local-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
             body: sharedRootBody(),
             legacyContents: [sharedRootBody()],
         },
         {
             id: 'atlas-forge-skill',
             kind: 'shared-skill',
+            displayName: 'Atlas Forge shared skill',
             category: 'entrypoints',
             path: '.atlasforge/skills/atlas-forge.md',
             agentTargets: [...ADAPTIVE_AGENTS],
             invocationAliases: INVOCATION_ALIASES,
+            installMode: 'repo-local-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
             body: sharedSkillBody(),
         },
         {
             id: 'atlas-forge-skill-clean-code',
             kind: 'support-skill',
+            displayName: 'Atlas Forge support skill: clean-code',
             category: 'entrypoints',
             path: '.atlasforge/skills/clean-code.md',
             agentTargets: [...ADAPTIVE_AGENTS],
+            installMode: 'repo-local-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
             body: cleanCodeBody(),
             legacyContents: [cleanCodeBody()],
         },
         {
             id: 'atlas-forge-skill-brainstorming',
             kind: 'support-skill',
+            displayName: 'Atlas Forge support skill: brainstorming',
             category: 'entrypoints',
             path: '.atlasforge/skills/brainstorming.md',
             agentTargets: [...ADAPTIVE_AGENTS],
+            installMode: 'repo-local-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
             body: brainstormingBody(),
             legacyContents: [brainstormingBody()],
         },
         {
             id: 'atlas-forge-skill-workflow',
             kind: 'support-skill',
+            displayName: 'Atlas Forge support skill: workflow',
             category: 'entrypoints',
             path: '.atlasforge/skills/workflow.md',
             agentTargets: [...ADAPTIVE_AGENTS],
+            installMode: 'repo-local-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
             body: workflowBody(),
             legacyContents: [workflowBody()],
         },
         {
             id: 'atlas-forge-workflow-task-lifecycle',
             kind: 'workflow-template',
+            displayName: 'Atlas Forge workflow template: task-lifecycle',
             category: 'entrypoints',
             path: '.atlasforge/workflows/task-lifecycle.md',
             agentTargets: [...ADAPTIVE_AGENTS],
+            installMode: 'repo-local-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
             body: taskLifecycleBody(),
             legacyContents: [taskLifecycleBody()],
         },
         {
             id: 'atlas-forge-command-init-scan',
             kind: 'command-template',
+            displayName: 'Atlas Forge command: init-scan',
             category: 'entrypoints',
             path: '.atlasforge/commands/init-scan.md',
             agentTargets: [...ADAPTIVE_AGENTS],
             invocationAliases: ['/atlas init-scan'],
+            installMode: 'repo-local-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
             body: initScanCommandBody(),
         },
         {
             id: 'atlas-forge-command-check-atlas',
             kind: 'command-template',
+            displayName: 'Atlas Forge command: check-atlas',
             category: 'entrypoints',
             path: '.atlasforge/commands/check-atlas.md',
             agentTargets: [...ADAPTIVE_AGENTS],
             invocationAliases: ['/atlas check-atlas'],
+            installMode: 'repo-local-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
             body: checkAtlasCommandBody(),
         },
         {
             id: 'atlas-forge-command-task-start',
             kind: 'command-template',
+            displayName: 'Atlas Forge command: task-start',
             category: 'entrypoints',
             path: '.atlasforge/commands/task-start.md',
             agentTargets: [...ADAPTIVE_AGENTS],
             invocationAliases: ['/atlas task-start'],
+            installMode: 'repo-local-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
             body: taskStartCommandBody(),
         },
         {
             id: 'atlas-forge-command-bugfix',
             kind: 'command-template',
+            displayName: 'Atlas Forge command: bugfix',
             category: 'entrypoints',
             path: '.atlasforge/commands/bugfix.md',
             agentTargets: [...ADAPTIVE_AGENTS],
             invocationAliases: ['/atlas bugfix'],
+            installMode: 'repo-local-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
             body: bugfixCommandBody(),
         },
         {
             id: 'atlas-forge-command-feature',
             kind: 'command-template',
+            displayName: 'Atlas Forge command: feature',
             category: 'entrypoints',
             path: '.atlasforge/commands/feature.md',
             agentTargets: [...ADAPTIVE_AGENTS],
             invocationAliases: ['/atlas feature'],
+            installMode: 'repo-local-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
             body: featureCommandBody(),
         },
         {
             id: 'atlas-forge-command-release',
             kind: 'command-template',
+            displayName: 'Atlas Forge command: release',
             category: 'entrypoints',
             path: '.atlasforge/commands/release.md',
             agentTargets: [...ADAPTIVE_AGENTS],
             invocationAliases: ['/atlas release'],
+            installMode: 'repo-local-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
             body: releaseCommandBody(),
         },
         {
             id: 'atlas-forge-bridge-superpower',
             kind: 'bridge-template',
+            displayName: 'Atlas Forge bridge: superpower',
             category: 'bridges',
             path: '.atlasforge/bridges/atlas-forge+superpower.md',
             agentTargets: [...ADAPTIVE_AGENTS],
             invocationAliases: ['$Atlas Forge + superpower'],
+            installMode: 'guidance-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
             body: bridgeBody('atlas-forge+superpower', 'superpower', 'Use Atlas Forge lifecycle and memory policy with superpower planning or debugging discipline.'),
         },
         {
             id: 'atlas-forge-bridge-claude-kit',
             kind: 'bridge-template',
+            displayName: 'Atlas Forge bridge: claude-kit',
             category: 'bridges',
             path: '.atlasforge/bridges/atlas-forge+claude-kit.md',
             agentTargets: ['claude'],
             invocationAliases: ['$Atlas Forge + claude-kit'],
+            installMode: 'guidance-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
             body: bridgeBody('atlas-forge+claude-kit', 'claude-kit', 'Use Atlas Forge lifecycle with Claude-oriented MCP and prompt conventions.'),
         },
         {
             id: 'atlas-forge-bridge-codex-kit',
             kind: 'bridge-template',
+            displayName: 'Atlas Forge bridge: codex-kit',
             category: 'bridges',
             path: '.atlasforge/bridges/atlas-forge+codex-kit.md',
             agentTargets: ['codex'],
             invocationAliases: ['$Atlas Forge + codex-kit'],
+            installMode: 'guidance-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
             body: bridgeBody('atlas-forge+codex-kit', 'codex-kit', 'Use Atlas Forge lifecycle with Codex CLI-first and JSON-first conventions.'),
         },
         {
             id: 'atlas-forge-bridge-gemini-kit',
             kind: 'bridge-template',
+            displayName: 'Atlas Forge bridge: gemini-kit',
             category: 'bridges',
             path: '.atlasforge/bridges/atlas-forge+gemini-kit.md',
             agentTargets: ['gemini'],
             invocationAliases: ['$Atlas Forge + gemini-kit'],
+            installMode: 'guidance-only',
+            mergeStrategy: 'replace-if-unmodified',
+            conflictPolicy: 'preserve-user',
             body: bridgeBody('atlas-forge+gemini-kit', 'gemini-kit', 'Use Atlas Forge lifecycle with Gemini CLI-first and prompt-driven conventions.'),
         },
     ];
@@ -669,19 +949,33 @@ function desiredArtifactsFor(requestedAgent: AgentSelection, appliedAgent: Agent
         }
     }
 
+    if (profileMode === 'professional') {
+        artifacts.push(...vendorSuperpowerArtifacts());
+    }
+
     return artifacts;
 }
 
 function toMetadata(artifact: DesiredArtifact, status: EntryArtifactMetadata['status']): EntryArtifactMetadata {
+    const normalized = normalizedArtifact(artifact);
     return {
-        id: artifact.id,
-        kind: artifact.kind,
-        path: artifact.path,
-        agent_targets: artifact.agentTargets,
+        id: normalized.id,
+        kind: normalized.kind,
+        display_name: normalized.displayName,
+        path: normalized.path,
+        agent_targets: normalized.agentTargets,
         managed: true,
+        management_tier: normalized.managementTier,
+        atlas_owner: normalized.atlasOwner,
         generated_by: GENERATED_BY,
+        version: MANAGED_VERSION,
         status,
-        invocation_aliases: artifact.invocationAliases ?? [],
+        source_provenance: normalized.sourceProvenance,
+        upstream_path: normalized.upstreamPath,
+        install_mode: normalized.installMode,
+        conflict_policy: normalized.conflictPolicy,
+        merge_strategy: normalized.mergeStrategy,
+        invocation_aliases: normalized.invocationAliases ?? [],
     };
 }
 
@@ -746,14 +1040,31 @@ function inspectArtifact(root: string, artifact: DesiredArtifact): EntryArtifact
     return 'present';
 }
 
-function requiredArtifactPaths(requestedAgent: AgentSelection, appliedAgent: AgentKind): string[] {
-    return desiredArtifactsFor(requestedAgent, appliedAgent)
-        .filter((artifact) => artifact.category !== 'external_patch_files' || artifact.agentTargets.includes(appliedAgent))
+function requiredArtifactPaths(
+    requestedAgent: AgentSelection,
+    appliedAgent: AgentKind,
+    profileMode: ProfileMode,
+    runtimeOnly = false,
+    includeAllPatchArtifacts = false,
+): string[] {
+    return desiredArtifactsFor(requestedAgent, appliedAgent, profileMode, runtimeOnly)
+        .filter(
+            (artifact) =>
+                includeAllPatchArtifacts ||
+                artifact.category !== 'external_patch_files' ||
+                artifact.agentTargets.includes(appliedAgent),
+        )
         .map((artifact) => artifact.path);
 }
 
-function scanEntryLayer(root: string, requestedAgent: AgentSelection, appliedAgent: AgentKind) {
-    const metadata = desiredArtifactsFor(requestedAgent, appliedAgent).map((artifact) =>
+function scanEntryLayer(
+    root: string,
+    requestedAgent: AgentSelection,
+    appliedAgent: AgentKind,
+    profileMode: ProfileMode,
+    runtimeOnly = false,
+) {
+    const metadata = desiredArtifactsFor(requestedAgent, appliedAgent, profileMode, runtimeOnly).map((artifact) =>
         toMetadata(artifact, inspectArtifact(root, artifact))
     );
     return categorize(metadata);
@@ -916,6 +1227,8 @@ export function bootstrapAdaptiveArtifacts(
     const requestedAgent = options.requestedAgent ?? 'auto';
     const dryRun = Boolean(options.dryRun);
     const agentProfile = detectAgentProfile(root, requestedAgent);
+    const policy = readWorkspacePolicy(root);
+    const effectiveProfileMode: ProfileMode = requestedAgent === 'all' ? 'professional' : policy.profile_mode;
     const report: InitBootstrapReport = {
         created: [],
         updated: [],
@@ -928,7 +1241,7 @@ export function bootstrapAdaptiveArtifacts(
     };
 
     const metadata: EntryArtifactMetadata[] = [];
-    for (const artifact of desiredArtifactsFor(requestedAgent, agentProfile.applied_agent)) {
+    for (const artifact of desiredArtifactsFor(requestedAgent, agentProfile.applied_agent, effectiveProfileMode)) {
         const result = syncArtifact(root, artifact, dryRun);
         report[result.status].push(artifact.path);
         metadata.push(toMetadata(artifact, result.status));
@@ -953,26 +1266,78 @@ export function evaluateAgentReadiness(
     },
 ): AgentReadiness {
     const profile = detectAgentProfile(root, requestedAgent);
+    const workspacePolicy = readWorkspacePolicy(root);
+    const selectedRuntime = profile.applied_agent;
     const gaps: string[] = [];
 
     let score = 2;
 
-    const required = requiredArtifactPaths(requestedAgent, profile.applied_agent);
-    const present = required.filter((rel) => hasFile(root, rel)).length;
-    score += Number(((present / Math.max(required.length, 1)) * 4).toFixed(1));
+    const selectedRequired = requiredArtifactPaths(requestedAgent, selectedRuntime, workspacePolicy.profile_mode, true);
+    const selectedPresent = selectedRequired.filter((rel) => hasFile(root, rel)).length;
+    score += Number(((selectedPresent / Math.max(selectedRequired.length, 1)) * 2).toFixed(1));
 
-    const entryLayer = scanEntryLayer(root, requestedAgent, profile.applied_agent);
-    for (const artifact of [...entryLayer.entrypoints, ...entryLayer.bridges, ...entryLayer.external_patch_files]) {
-        if (artifact.status === 'missing') {
-            gaps.push(`missing artifact: ${artifact.path}`);
-        }
-        if (artifact.status === 'drifted') {
-            gaps.push(`managed artifact drifted: ${artifact.path}`);
+    const runtimes = {
+        codex: { ready: true, patch_state: workspacePolicy.runtime_patch_state.codex },
+        claude: { ready: true, patch_state: workspacePolicy.runtime_patch_state.claude },
+        gemini: { ready: true, patch_state: workspacePolicy.runtime_patch_state.gemini },
+    } as AgentReadiness['runtimes'];
+
+    for (const runtime of ADAPTIVE_AGENTS) {
+        const runtimeLayer = scanEntryLayer(root, runtime, runtime, workspacePolicy.profile_mode, true);
+        const runtimeArtifacts = [...runtimeLayer.entrypoints, ...runtimeLayer.bridges, ...runtimeLayer.external_patch_files];
+        const patchState = workspacePolicy.runtime_patch_state[runtime];
+        const runtimeIssues = runtimeArtifacts.filter(
+            (artifact) =>
+                artifact.kind !== 'hook-template' &&
+                !(artifact.kind === 'external-patch' && patchState !== 'required') &&
+                (artifact.status === 'missing' || artifact.status === 'drifted'),
+        );
+        const patchExists = hasFile(root, RUNTIME_PATCH_PATHS[runtime]);
+        const patchOk = patchState === 'required' ? patchExists : true;
+        const ready = runtimeIssues.length === 0 && patchOk;
+        runtimes[runtime].ready = ready;
+
+        if (runtime === selectedRuntime) {
+            for (const issue of runtimeIssues) {
+                const prefix = issue.status === 'missing' ? 'missing artifact' : 'managed artifact drifted';
+                gaps.push(`${prefix}: ${issue.path}`);
+            }
+            if (!patchOk) {
+                gaps.push(`runtime patch required but missing for ${runtime}: ${RUNTIME_PATCH_PATHS[runtime]}`);
+            }
         }
     }
 
+    const selectedRuntimeReady = runtimes[selectedRuntime].ready;
+    if (selectedRuntimeReady) {
+        score += 1;
+    } else {
+        gaps.push(`selected runtime is not ready: ${selectedRuntime}`);
+    }
+
+    let professionalKitReady = false;
+    if (workspacePolicy.profile_mode === 'professional') {
+        const professionalLayer = scanEntryLayer(root, 'all', selectedRuntime, 'professional');
+        const professionalIssues = [
+            ...professionalLayer.entrypoints,
+            ...professionalLayer.bridges,
+            ...professionalLayer.external_patch_files,
+        ].filter((artifact) => artifact.kind !== 'hook-template' && (artifact.status === 'missing' || artifact.status === 'drifted'));
+        professionalKitReady = professionalIssues.length === 0;
+        const professionalRequired = requiredArtifactPaths('all', selectedRuntime, 'professional', false, true);
+        const professionalPresent = professionalRequired.filter((rel) => hasFile(root, rel)).length;
+        score += Number(((professionalPresent / Math.max(professionalRequired.length, 1)) * 2).toFixed(1));
+        if (professionalKitReady) {
+            score += 1;
+        } else {
+            gaps.push('professional kit is not ready (missing or drifted managed artifacts)');
+        }
+    } else {
+        score += 1;
+    }
+
     const signalMap = collectSignals(root);
-    if (profile.applied_agent === 'claude') {
+    if (selectedRuntime === 'claude') {
         if (signalMap.hasMcpSignal) {
             score += 2;
         } else {
@@ -998,9 +1363,29 @@ export function evaluateAgentReadiness(
 
     const normalized = Math.max(0, Math.min(10, Number(score.toFixed(1))));
     const level: AgentReadiness['level'] = normalized >= 8.5 ? 'excellent' : normalized >= 6 ? 'good' : 'basic';
+    const notReady = ADAPTIVE_AGENTS.filter((runtime) => !runtimes[runtime].ready);
+    const runtime_readiness_dashboard: AgentReadiness['runtime_readiness_dashboard'] = {
+        selected: {
+            agent: selectedRuntime,
+            ready: selectedRuntimeReady,
+            patch_state: runtimes[selectedRuntime].patch_state,
+        },
+        agents: runtimes,
+        summary: {
+            ready_count: ADAPTIVE_AGENTS.length - notReady.length,
+            total: ADAPTIVE_AGENTS.length,
+            not_ready: notReady,
+        },
+    };
 
     return {
         agent_profile: profile,
+        profile: workspacePolicy.profile_mode,
+        selected_runtime: selectedRuntime,
+        selected_runtime_ready: selectedRuntimeReady,
+        professional_kit_ready: professionalKitReady,
+        runtimes,
+        runtime_readiness_dashboard,
         agent_readiness_score: normalized,
         level,
         gaps,
@@ -1009,5 +1394,6 @@ export function evaluateAgentReadiness(
 
 export function getEntryLayerMetadata(root: string, requestedAgent: AgentSelection = 'auto') {
     const profile = detectAgentProfile(root, requestedAgent);
-    return scanEntryLayer(root, requestedAgent, profile.applied_agent);
+    const workspacePolicy = readWorkspacePolicy(root);
+    return scanEntryLayer(root, requestedAgent, profile.applied_agent, workspacePolicy.profile_mode);
 }

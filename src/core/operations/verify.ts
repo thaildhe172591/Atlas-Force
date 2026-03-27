@@ -51,6 +51,16 @@ export async function verifyOperation(root: string, requestedAgent: AgentSelecti
                     message: `promote_mode is ${promotion.effective_mode}`,
                 });
             }
+            checks.push({
+                name: 'profile-mode',
+                status: 'pass',
+                message: `profile_mode is ${load.config.profile_mode}`,
+            });
+            checks.push({
+                name: 'runtime-patch-state',
+                status: 'pass',
+                message: `runtime_patch_state: codex=${load.config.runtime_patch_state.codex}, claude=${load.config.runtime_patch_state.claude}, gemini=${load.config.runtime_patch_state.gemini}`,
+            });
         } catch (err: any) {
             checks.push({ name: 'config', status: 'fail', message: `config.yaml is invalid: ${err.message}` });
         }
@@ -90,6 +100,12 @@ export async function verifyOperation(root: string, requestedAgent: AgentSelecti
         checks,
         promotion,
         agent_profile: readiness.agent_profile,
+        profile: readiness.profile,
+        selected_runtime: readiness.selected_runtime,
+        selected_runtime_ready: readiness.selected_runtime_ready,
+        professional_kit_ready: readiness.professional_kit_ready,
+        runtimes: readiness.runtimes,
+        runtime_readiness_dashboard: readiness.runtime_readiness_dashboard,
         agent_readiness_score: readiness.agent_readiness_score,
         level: readiness.level,
         gaps: readiness.gaps,

@@ -1,210 +1,99 @@
-# Atlas Forge Tutorial
+# Atlas Forge Tutorial (Quickstart + Troubleshooting)
 
-This tutorial helps users and agents adopt Atlas Forge in a predictable, production-friendly workflow.
+This guide is optimized for fast onboarding and production-safe usage.
 
-## Learning Goals
+## 0.4.6 Highlights
 
-After this guide, you can:
+- EN: Curated professional vendor kit for smaller, cleaner release payloads.
+- VN: Bộ professional kit đã được curate có chủ đích, giúp package gọn và ổn định hơn.
+- EN: Runtime readiness now has a short dashboard shape in `verify/status --json`.
+- VN: Readiness theo runtime có dashboard JSON ngắn để đọc nhanh.
+- EN: Legacy migration for old config is stricter and more deterministic.
+- VN: Migration config repo cũ đã cứng hơn, giảm lỗi edge-case.
 
-- initialize a workspace
-- run a complete memory lifecycle
-- debug failed promotions
-- automate with JSON output
+## 1) Quickstart
 
-## Mental Model
-
-Atlas Forge works with two memory zones:
-
-- `staging`: draft memories during active work
-- `canonical`: verified memories promoted for reuse
-
-Lifecycle:
-
-1. `start` task context
-2. `add` decisions/patterns while implementing
-3. `doctor` validate staging quality
-4. `close` promote valid entries
-
-```mermaid
-flowchart LR
-  A["init --agent auto"] --> B["bootstrap agent files"]
-  B --> C["status / search"]
-  C --> D["start"]
-  D --> E["add"]
-  E --> F["doctor"]
-  F --> G["close"]
-  G --> H["canonical"]
-```
-
-## Agent Cheat Sheet
-
-| Agent | First command | Follow-up | Expected result |
-|---|---|---|---|
-| Claude | `af_init` | `af_status` | MCP tools ready, active session visible |
-| Cursor | `af_init` | `af_search` | MCP-first flow inside IDE |
-| Codex | `atlas-forge init --agent codex --json` | `status -> start -> add -> doctor -> close` | CLI JSON flow with ready artifact set |
-| Gemini | `atlas-forge init --agent gemini --json` | `optimize --agent gemini --json` | CLI-first, profile-specific guidance files |
-| Antigravity | `atlas-forge init --agent auto --json` | `doctor` before `close` | Orchestrated CLI workflow with promotion discipline |
-
-## Prompt Templates
-
-Use these prompts to get consistent, high-signal output from Codex or other agents:
-
-### 1) Repo Scan
-
-```text
-/init
-Scan the repo before changing code.
-Return:
-1. architecture summary
-2. main entrypoints and scripts
-3. config and environment files
-4. top technical risks
-5. a short implementation plan
-Do not edit files yet.
-```
-
-### 2) Bug Fix
-
-```text
-Use Atlas Forge.
-Workflow:
-status -> search -> start -> fix -> add memory -> doctor -> close
-First identify the root cause, then patch the minimum safe change.
-Run the relevant tests before closing.
-```
-
-### 3) Feature Work
-
-```text
-Use Atlas Forge for this feature.
-Start by checking status and search.
-Then propose the smallest implementation plan that preserves existing behavior.
-Record key decisions with code-pattern memory entries.
-Finish with doctor and close.
-```
-
-### 4) Release / Polish
-
-```text
-Use Atlas Forge in release mode.
-Check status, verify, and existing docs first.
-Improve user-facing guidance, examples, and prompts without changing core behavior.
-Keep the output concise and publish-ready.
-```
-
-## Skill Combos
-
-Atlas Forge works best when paired with a focused skill. Think of it like this:
-
-| Task type | Good skill combo | Why it helps |
-|---|---|---|
-| New feature | `brainstorming` + `writing-plans` | Forces a clean design first, then turns it into steps |
-| Bug fix | `systematic-debugging` + `verification-before-completion` | Finds the root cause and proves the fix before closing |
-| Publish/release | `verification-before-completion` + `git-ops-pro` | Keeps the release clean and evidence-backed |
-| Docs polish | `documentation-templates` + `clean-code` | Makes docs shorter, clearer, and easier to scan |
-
-Example prompt:
-
-```text
-Use Atlas Forge with brainstorming and writing-plans.
-First inspect the repo, then propose 2-3 approaches for this feature, wait for approval, and only then implement.
-Track decisions in Atlas Forge, run doctor before close, and keep the output concise.
-```
-
-## Hands-on Walkthrough
-
-### Step 1: Initialize
+### Universal flow (CLI JSON-first)
 
 ```bash
-npx atlas-forge init --agent auto
-```
-
-Expected outcome:
-- `.atlasforge/` created
-- default `config.yaml` available
-- shared `AGENTS.md` plus profile-specific root guidance (`CLAUDE.md`/`GEMINI.md`/`CODEX.md`) auto-created when missing
-- `.atlasforge/skills/` + `.atlasforge/workflows/` seeded when missing
-
-Optional re-sync (non-destructive):
-
-```bash
-npx atlas-forge optimize --agent auto --json
-```
-
-### Step 2: Start a Task Session
-
-```bash
-npx atlas-forge start "Implement billing retries"
-```
-
-Expected outcome:
-- one active session
-- preflight context loaded when available
-
-### Step 3: Capture Knowledge During Work
-
-```bash
-npx atlas-forge add \
-  --type decision \
-  --title "Retry policy" \
-  --summary "Use exponential backoff with jitter"
-```
-
-Use `code-pattern` for reusable templates:
-
-```bash
-npx atlas-forge add \
-  --type code-pattern \
-  --title "Idempotent retry wrapper" \
-  --summary "Safe wrapper for retriable operations"
-```
-
-### Step 4: Validate Before Promotion
-
-```bash
-npx atlas-forge doctor
-```
-
-Expected outcome:
-- diagnostics pass, warn, or fail
-- actionable checks for bad entries
-
-### Step 5: Close and Promote
-
-```bash
-npx atlas-forge close "Billing retry implementation complete"
-```
-
-## Automation Mode (`--json`)
-
-For agents and scripts, always prefer machine-readable responses:
-
-```bash
+npx atlas-forge init --agent auto --json
+npx atlas-forge verify --json
 npx atlas-forge status --json
-npx atlas-forge search "retry" --json
+npx atlas-forge start "Task summary" --json
+npx atlas-forge add --type decision --title "Decision" --summary "Why" --json
 npx atlas-forge doctor --json
+npx atlas-forge close "Task done" --json
 ```
 
-Quick decision rule:
-- `init` or `optimize` when you need agent files and workflows created or re-synced.
-- `verify` when you need readiness and config health.
-- `status` when you need live counts plus agent readiness score.
+Expected checkpoints:
+- `verify`: `ok=true`, has `runtime_readiness_dashboard`
+- `status`: `snapshot` + `promotion` + `runtime_readiness_dashboard`
+- `close`: `promoted_count > 0` for valid staged entries
 
-## Troubleshooting
+### Mini walkthrough by agent
+
+| Agent | First command | Next command | Expected result |
+|---|---|---|---|
+| Codex | `npx atlas-forge init --agent codex --json` | `npx atlas-forge status --agent codex --json` | CLI workflow ready + dashboard fields present |
+| Claude | `af_init` | `af_status` | MCP tools usable and status payload visible |
+| Gemini | `npx atlas-forge init --agent gemini --json` | `npx atlas-forge verify --agent gemini --json` | Profile-specific setup + readiness details |
+
+## 2) Readiness Dashboard Quick Read
+
+Look at these keys:
+
+- `selected_runtime`: runtime currently applied
+- `selected_runtime_ready`: pass/fail for selected runtime
+- `professional_kit_ready`: pass/fail for full multi-runtime kit
+- `runtime_readiness_dashboard.summary`: total and not-ready runtimes
+
+Sample:
+
+```json
+{
+  "selected_runtime": "codex",
+  "selected_runtime_ready": true,
+  "professional_kit_ready": true,
+  "runtime_readiness_dashboard": {
+    "summary": { "ready_count": 3, "total": 3, "not_ready": [] }
+  }
+}
+```
+
+## 3) Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `Atlas Forge is not initialized` | missing `.atlasforge` | run `atlas-forge init` |
-| invalid memory type | unsupported `--type` value | use supported types from `README.md` |
-| doctor failures | malformed entry or bad evidence refs | inspect `doctor.checks`, repair entry, rerun |
-| close does not promote expected records | promote mode or failed checks | run `status` + `doctor` to inspect state |
+| `Atlas Forge is not initialized` | missing `.atlasforge` | run `init --agent auto --json` |
+| `selected_runtime_ready=false` | missing/drifted runtime artifacts | run `optimize --agent <runtime> --json`, then `verify --json` |
+| `professional_kit_ready=false` | all-runtime kit incomplete in professional mode | run `optimize --agent all --json` |
+| `doctor` fail | invalid staged entries or proof requirements | inspect `doctor.checks`, fix entries, rerun |
+| `close` not promoting expected entries | skipped/failing staged entries | rerun `doctor`, then close again |
 
-Note: new workspaces default to `promote_mode: direct`.
+## 4) Publish Checklist (Fast Path)
 
-## Next Steps
+```bash
+npm run lint
+npm test
+npm run test:smoke
+npm run build
+npm_config_cache=/tmp/.npm npm pack --dry-run
+npm version patch
+git push origin main --follow-tags
+```
 
-- Read release gate: `docs/release-checklist.md`
-- Configure MCP: `README.md` MCP section
-- Pick agent-specific guide in `docs/agents/`
-- Copy a starting prompt from `docs/agents/prompt-kit.md`
+The tag triggers dual publish:
+- npmjs: `@thaild12042003/atlas-forge`
+- GitHub Packages: `@thaildhe172591/atlas-forge`
+
+## 5) Post-publish Verification
+
+```bash
+npm view @thaild12042003/atlas-forge version
+npx -y @thaild12042003/atlas-forge atlas-forge verify --json
+```
+
+Manual checks:
+- GitHub Release exists for tag `vX.Y.Z`
+- GitHub Packages tab shows `@thaildhe172591/atlas-forge`
+- `verify --json` output contains readiness dashboard keys

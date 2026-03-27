@@ -2,7 +2,7 @@ import type { MemoryEntry } from './entry.js';
 import type { MemoryType } from './states.js';
 import type { TaskSession } from './task.js';
 import type { DoctorResult } from './diagnostics.js';
-import type { PromotionModeHealth } from './config.js';
+import type { ProfileMode, PromotionModeHealth, RuntimePatchState } from './config.js';
 
 export type AgentKind = 'claude' | 'gemini' | 'codex';
 export type AgentSelection = AgentKind | 'auto' | 'all';
@@ -10,12 +10,19 @@ export type AgentConfidence = 'low' | 'medium' | 'high';
 export type EntryArtifactKind =
     | 'shared-skill'
     | 'support-skill'
+    | 'vendor-skill'
     | 'agent-guide'
     | 'command-template'
+    | 'hook-template'
     | 'workflow-template'
     | 'bridge-template'
     | 'external-patch';
 export type EntryArtifactStatus = 'created' | 'updated' | 'skipped' | 'drifted' | 'present' | 'missing';
+export type EntryArtifactManagementTier = 'atlas-managed' | 'vendor-managed' | 'user-owned';
+export type EntryArtifactInstallMode = 'repo-local-only' | 'external-patch' | 'guidance-only' | 'manual-install' | 'unsupported';
+export type EntryArtifactConflictPolicy = 'preserve-user';
+export type EntryArtifactMergeStrategy = 'replace-if-unmodified' | 'drift-report';
+export type DecisionClass = 'architecture' | 'behavioral' | 'workflow';
 
 export interface AgentProfile {
     requested_agent: AgentSelection;
@@ -27,19 +34,48 @@ export interface AgentProfile {
 
 export interface AgentReadiness {
     agent_profile: AgentProfile;
+    profile: ProfileMode;
+    selected_runtime: AgentKind;
+    selected_runtime_ready: boolean;
+    professional_kit_ready: boolean;
+    runtimes: Record<AgentKind, { ready: boolean; patch_state: RuntimePatchState }>;
+    runtime_readiness_dashboard: RuntimeReadinessDashboard;
     agent_readiness_score: number;
     level: 'basic' | 'good' | 'excellent';
     gaps: string[];
 }
 
+export interface RuntimeReadinessDashboard {
+    selected: {
+        agent: AgentKind;
+        ready: boolean;
+        patch_state: RuntimePatchState;
+    };
+    agents: Record<AgentKind, { ready: boolean; patch_state: RuntimePatchState }>;
+    summary: {
+        ready_count: number;
+        total: number;
+        not_ready: AgentKind[];
+    };
+}
+
 export interface EntryArtifactMetadata {
     id: string;
     kind: EntryArtifactKind;
+    display_name: string;
     path: string;
     agent_targets: AgentKind[];
     managed: boolean;
+    management_tier: EntryArtifactManagementTier;
+    atlas_owner: 'atlas' | 'vendor';
     generated_by: 'atlas-forge';
+    version: string;
     status: EntryArtifactStatus;
+    source_provenance: string;
+    upstream_path?: string;
+    install_mode: EntryArtifactInstallMode;
+    conflict_policy: EntryArtifactConflictPolicy;
+    merge_strategy: EntryArtifactMergeStrategy;
     invocation_aliases: string[];
 }
 
@@ -59,6 +95,8 @@ export interface AddMemoryOptions {
     tags?: string[];
     files?: string[];
     evidence_refs?: any[];
+    decision_class?: DecisionClass;
+    verified_change?: boolean;
     metadata?: Record<string, any>;
 }
 
@@ -114,6 +152,12 @@ export interface StatusResult {
     snapshot: StatusSnapshot;
     promotion: PromotionModeHealth;
     agent_profile: AgentProfile;
+    profile: ProfileMode;
+    selected_runtime: AgentKind;
+    selected_runtime_ready: boolean;
+    professional_kit_ready: boolean;
+    runtimes: Record<AgentKind, { ready: boolean; patch_state: RuntimePatchState }>;
+    runtime_readiness_dashboard: RuntimeReadinessDashboard;
     agent_readiness_score: number;
     level: 'basic' | 'good' | 'excellent';
     gaps: string[];
@@ -151,6 +195,12 @@ export interface VerifyResult {
     checks: VerifyCheck[];
     promotion: PromotionModeHealth;
     agent_profile: AgentProfile;
+    profile: ProfileMode;
+    selected_runtime: AgentKind;
+    selected_runtime_ready: boolean;
+    professional_kit_ready: boolean;
+    runtimes: Record<AgentKind, { ready: boolean; patch_state: RuntimePatchState }>;
+    runtime_readiness_dashboard: RuntimeReadinessDashboard;
     agent_readiness_score: number;
     level: 'basic' | 'good' | 'excellent';
     gaps: string[];

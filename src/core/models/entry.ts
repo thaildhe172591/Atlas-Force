@@ -1,4 +1,5 @@
 import type { QualityState, LifecycleState, MemoryType, MemorySource, Confidence } from './states.js';
+import type { DecisionClass } from './operations.js';
 
 export type EvidenceRef =
     | { type: 'file'; path: string; line_start?: number; line_end?: number; label?: string }
@@ -30,6 +31,8 @@ export interface MemoryEntry {
     source: MemorySource;
     confidence: Confidence;
     inferred_fields?: string[];
+    decision_class?: DecisionClass;
+    verified_change?: boolean;
     quality_state: QualityState;
     lifecycle_state: LifecycleState;
     created_at: string;

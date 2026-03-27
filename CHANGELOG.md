@@ -2,6 +2,34 @@
  
 All notable changes to this project are documented in this file.
 
+## 0.4.6 - 2026-03-27
+
+### Added
+- Runtime readiness dashboard contract is now documented consistently across README, tutorial, and agent guides:
+  - `profile`
+  - `selected_runtime`
+  - `selected_runtime_ready`
+  - `professional_kit_ready`
+  - `runtimes`
+  - `runtime_readiness_dashboard`
+- Visual Quickstart + Troubleshooting format for user-facing docs, including one-page flow and quick decision tables.
+
+### Changed
+- Curated Superpowers vendor subset is now the documented release baseline for professional profile packaging.
+- Release checklist is hardened for dual-registry publish with explicit metadata gate and ordered auth/2FA/scope troubleshooting.
+
+## 0.4.5 - 2026-03-27
+
+### Added
+- Stronger release and onboarding guidance for the agent entry layer v1.
+- Explicit docs for `init --agent all`, generated entry-layer artifacts, and readiness metadata.
+- Install and release guidance for the dual-package publish model:
+  - npmjs: `@thaild12042003/atlas-forge`
+  - GitHub Packages: `@thaildhe172591/atlas-forge`
+
+### Changed
+- README and tutorial now highlight the 0.4.5 workflow and troubleshooting path for registry publishing.
+
 ## 0.4.4 - 2026-03-27
 
 ### Changed

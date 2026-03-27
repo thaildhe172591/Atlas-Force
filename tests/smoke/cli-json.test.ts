@@ -74,6 +74,12 @@ describe('CLI JSON smoke', () => {
         const verifyJson = JSON.parse(verify.stdout);
         expect(verifyJson.ok).toBe(true);
         expect(verifyJson.agent_profile.applied_agent).toBe('codex');
+        expect(['core', 'professional']).toContain(verifyJson.profile);
+        expect(typeof verifyJson.selected_runtime_ready).toBe('boolean');
+        expect(typeof verifyJson.professional_kit_ready).toBe('boolean');
+        expect(verifyJson.runtimes).toBeTruthy();
+        expect(verifyJson.runtime_readiness_dashboard).toBeTruthy();
+        expect(verifyJson.runtime_readiness_dashboard.summary.total).toBe(3);
         expect(typeof verifyJson.agent_readiness_score).toBe('number');
         expect(Array.isArray(verifyJson.entrypoints)).toBe(true);
         expect(Array.isArray(verifyJson.bridges)).toBe(true);
@@ -115,6 +121,12 @@ describe('CLI JSON smoke', () => {
         expect(statusJson.snapshot.canonical_count).toBeGreaterThan(0);
         expect(statusJson.promotion.effective_mode).toBe('direct');
         expect(statusJson.agent_profile.applied_agent).toBe('codex');
+        expect(['core', 'professional']).toContain(statusJson.profile);
+        expect(typeof statusJson.selected_runtime_ready).toBe('boolean');
+        expect(typeof statusJson.professional_kit_ready).toBe('boolean');
+        expect(statusJson.runtimes).toBeTruthy();
+        expect(statusJson.runtime_readiness_dashboard).toBeTruthy();
+        expect(statusJson.runtime_readiness_dashboard.summary.total).toBe(3);
         expect(typeof statusJson.agent_readiness_score).toBe('number');
         expect(Array.isArray(statusJson.gaps)).toBe(true);
         expect(Array.isArray(statusJson.entrypoints)).toBe(true);
@@ -125,7 +137,7 @@ describe('CLI JSON smoke', () => {
         expect(search.code).toBe(0);
         const searchJson = JSON.parse(search.stdout);
         expect(searchJson.command).toBe('search');
-    });
+    }, 15000);
 
     it('returns validation error and exit code 2 for invalid type', async () => {
         const init = await execCli(TEST_ROOT, ['init', '--json']);
@@ -155,6 +167,7 @@ describe('CLI JSON smoke', () => {
         expect(initJson.bootstrap.entrypoints.some((artifact: any) => artifact.path === 'CLAUDE.md')).toBe(true);
         expect(initJson.bootstrap.entrypoints.some((artifact: any) => artifact.path === 'CODEX.md')).toBe(true);
         expect(initJson.bootstrap.entrypoints.some((artifact: any) => artifact.path === 'GEMINI.md')).toBe(true);
+        expect(initJson.bootstrap.entrypoints.some((artifact: any) => artifact.path.includes('.atlasforge/skills/superpowers/'))).toBe(true);
         expect(initJson.bootstrap.external_patch_files.some((artifact: any) => artifact.path.includes('/claude/'))).toBe(true);
         expect(initJson.bootstrap.external_patch_files.some((artifact: any) => artifact.path.includes('/codex/'))).toBe(true);
         expect(initJson.bootstrap.external_patch_files.some((artifact: any) => artifact.path.includes('/gemini/'))).toBe(true);

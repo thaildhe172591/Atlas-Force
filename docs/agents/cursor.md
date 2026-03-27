@@ -2,13 +2,11 @@
 
 ## Quickstart
 
-Configure MCP to run:
-
+Configure Cursor MCP:
 - `command`: `npx`
 - `args`: `-y @thaild12042003/atlas-forge atlas-forge-mcp`
 
-Then use:
-
+Then run:
 1. `af_init`
 2. `af_status`
 3. `af_search`
@@ -16,21 +14,21 @@ Then use:
 5. `af_add_memory`
 6. `af_close_task`
 
+Expected from `af_status`:
+- memory snapshot
+- promotion mode
+- readiness dashboard fields
+
 ## Best Skill Stack
 
-- `brainstorming` for layout, workflow, or feature decisions.
-- `documentation-templates` when you need docs that stay scannable in the IDE.
-- `verification-before-completion` before you mark a change ready.
-
-## One-Screen Flow
-
-- `af_init` when the workspace is new.
-- `af_status` before implementation to see snapshot fields.
-- `af_search` to pull context into the IDE.
-- `af_add_memory` for important decisions and reusable patterns.
+- `brainstorming`
+- `documentation-templates`
+- `verification-before-completion`
 
 ## Troubleshooting
 
-- Missing `.atlasforge`: run `af_init`.
-- Invalid MCP payloads: ensure required fields are present and typed correctly.
-- No tool list: confirm the Cursor MCP config points to `atlas-forge-mcp`.
+| Symptom | Fix |
+|---|---|
+| No MCP tools | validate Cursor MCP config path and restart host |
+| Missing `.atlasforge` | run `af_init` in project root |
+| Invalid payloads | ensure required args and valid memory type |

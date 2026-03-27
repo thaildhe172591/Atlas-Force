@@ -16,7 +16,6 @@ Add to `claude_desktop_config.json`:
 ```
 
 Then run:
-
 1. `af_init`
 2. `af_status`
 3. `af_search`
@@ -24,21 +23,29 @@ Then run:
 5. `af_add_memory`
 6. `af_close_task`
 
+Expected from `af_status`:
+- snapshot data
+- promotion data
+- readiness fields including dashboard
+
 ## Best Skill Stack
 
-- `brainstorming` when the task needs design or trade-off choices.
-- `systematic-debugging` when the flow is blocked by a bug or failing test.
-- `verification-before-completion` before saying the task is done.
-
-## One-Screen Flow
-
-- Start with `af_init` in a fresh workspace.
-- Use `af_status` to confirm readiness and current memory counts.
-- Capture key decisions with `af_add_memory` while coding.
-- Close with `af_close_task` once the task is done.
+- `brainstorming`
+- `systematic-debugging`
+- `verification-before-completion`
 
 ## Troubleshooting
 
-- Workspace not initialized: call `af_init` first.
-- Missing tools: verify the MCP host is loading `atlas-forge-mcp`.
-- Invalid `type`: use the supported memory types in `README.md`.
+| Symptom | Fix |
+|---|---|
+| Tools not visible | verify MCP host loads `atlas-forge-mcp` |
+| Workspace not initialized | call `af_init` first |
+| Readiness seems low | run CLI `atlas-forge verify --agent claude --json` and resolve gaps |
+
+## Prompt Seed
+
+```text
+Use Atlas Forge through MCP.
+Flow: af_init -> af_status -> af_search -> af_start_task -> af_add_memory -> af_close_task.
+Keep summaries concise and follow doctor/close discipline.
+```

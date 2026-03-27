@@ -40,6 +40,8 @@ export const MemoryEntrySchema = z.object({
     source: z.enum(['manual', 'orchestrated', 'imported', 'generated']),
     confidence: z.enum(['high', 'medium', 'low']),
     inferred_fields: z.array(z.string()).default([]),
+    decision_class: z.enum(['architecture', 'behavioral', 'workflow']).optional(),
+    verified_change: z.boolean().optional(),
     quality_state: z.enum(['draft', 'verified', 'rejected']),
     lifecycle_state: z.enum(['staging', 'canonical', 'stale', 'deprecated']),
     created_at: z.string(),

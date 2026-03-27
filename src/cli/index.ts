@@ -8,7 +8,7 @@ import { ADAPTIVE_AGENTS, isAgentSelection } from '../core/config/agent-ready.js
 import { MEMORY_TYPES } from '../core/models/states.js';
 import type { AgentSelection } from '../core/models/index.js';
 
-const CLI_VERSION = '0.4.4';
+const CLI_VERSION = '0.4.6';
 
 class CliValidationError extends Error {}
 
@@ -67,6 +67,14 @@ function validateMemoryType(value: string) {
         throw new CliValidationError(`Invalid memory type "${value}". Supported types: ${MEMORY_TYPES.join(', ')}`);
     }
     return value as (typeof MEMORY_TYPES)[number];
+}
+
+function validateDecisionClass(value?: string): 'architecture' | 'behavioral' | 'workflow' | undefined {
+    if (!value) return undefined;
+    if (value === 'architecture' || value === 'behavioral' || value === 'workflow') {
+        return value;
+    }
+    throw new CliValidationError('`--decision-class` must be one of: architecture, behavioral, workflow.');
 }
 
 function validateAgent(value: string): AgentSelection {
@@ -200,15 +208,18 @@ export function createProgram() {
         .requiredOption('-t, --title <title>', 'Descriptive title')
         .requiredOption('-s, --summary <summary>', 'Brief summary')
         .option('-y, --type <type>', `Memory type (${MEMORY_TYPES.join(', ')})`, 'task-note')
+        .option('--decision-class <class>', 'Decision class (architecture, behavioral, workflow)')
+        .option('--verified-change', 'Mark that this entry claims verified behavioral change')
         .option('-w, --what-changed <what>', 'Long-form description of what changed', 'Manual entry')
         .option('-r, --why <why>', 'Rationale for this memory', 'Context preservation')
         .option('-j, --json', 'Output machine-readable JSON')
-        .action(async (options: { title: string; summary: string; type: string; whatChanged: string; why: string; json?: boolean }) => {
+        .action(async (options: { title: string; summary: string; type: string; decisionClass?: string; verifiedChange?: boolean; whatChanged: string; why: string; json?: boolean }) => {
             const json = Boolean(options.json);
             const root = path.resolve(program.opts().cwd);
             try {
                 ensureInitialized(root);
                 const type = validateMemoryType(options.type);
+                const decisionClass = validateDecisionClass(options.decisionClass);
                 const forge = await AtlasForge.load(root);
                 const entry = await forge.add({
                     memory_type: type,
@@ -216,6 +227,8 @@ export function createProgram() {
                     summary: options.summary,
                     what_changed: options.whatChanged,
                     why_it_matters: options.why,
+                    decision_class: decisionClass,
+                    verified_change: Boolean(options.verifiedChange),
                 });
 
                 const payload = {
@@ -295,6 +308,12 @@ export function createProgram() {
                     snapshot: status.snapshot,
                     promotion: status.promotion,
                     agent_profile: status.agent_profile,
+                    profile: status.profile,
+                    selected_runtime: status.selected_runtime,
+                    selected_runtime_ready: status.selected_runtime_ready,
+                    professional_kit_ready: status.professional_kit_ready,
+                    runtimes: status.runtimes,
+                    runtime_readiness_dashboard: status.runtime_readiness_dashboard,
                     agent_readiness_score: status.agent_readiness_score,
                     level: status.level,
                     gaps: status.gaps,
@@ -317,8 +336,10 @@ export function createProgram() {
                     console.log(`Staging Area : ${chalk.yellow(status.snapshot.staging_count)} memories`);
                     const migrationFlag = status.promotion.migration_applied ? chalk.yellow(' (auto-migrated from assisted)') : '';
                     console.log(`Promote Mode : ${chalk.green(status.promotion.effective_mode)}${migrationFlag}`);
+                    console.log(`Profile     : ${chalk.cyan(status.profile)}`);
                     console.log(`Agent Ready : ${chalk.cyan(status.agent_readiness_score)}/10 (${status.level})`);
                     console.log(`Agent Profile: requested=${status.agent_profile.requested_agent}, detected=${status.agent_profile.detected_agent}, applied=${status.agent_profile.applied_agent}`);
+                    console.log(`Runtime Ready: selected=${status.selected_runtime_ready}, professional_kit=${status.professional_kit_ready}`);
                     console.log('---------------------------\n');
                 }
             } catch (err) {
@@ -414,6 +435,12 @@ export function createProgram() {
                     checks: result.checks,
                     promotion: result.promotion,
                     agent_profile: result.agent_profile,
+                    profile: result.profile,
+                    selected_runtime: result.selected_runtime,
+                    selected_runtime_ready: result.selected_runtime_ready,
+                    professional_kit_ready: result.professional_kit_ready,
+                    runtimes: result.runtimes,
+                    runtime_readiness_dashboard: result.runtime_readiness_dashboard,
                     agent_readiness_score: result.agent_readiness_score,
                     level: result.level,
                     gaps: result.gaps,
@@ -433,8 +460,10 @@ export function createProgram() {
                     }
                     const migrationFlag = result.promotion.migration_applied ? chalk.yellow(' (auto-migrated from assisted)') : '';
                     console.log(`Promotion mode: ${chalk.green(result.promotion.effective_mode)}${migrationFlag}`);
+                    console.log(`Profile mode: ${chalk.cyan(result.profile)}`);
                     console.log(`Agent readiness: ${chalk.cyan(result.agent_readiness_score)}/10 (${result.level})`);
                     console.log(`Agent profile: requested=${result.agent_profile.requested_agent}, detected=${result.agent_profile.detected_agent}, applied=${result.agent_profile.applied_agent}`);
+                    console.log(`Runtime readiness: selected=${result.selected_runtime_ready}, professional_kit=${result.professional_kit_ready}`);
                 }
 
                 if (!result.ok) {

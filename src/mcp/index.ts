@@ -7,7 +7,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { AtlasForge } from '../core/facade.js';
 import { MEMORY_TYPES } from '../core/models/states.js';
 
-const MCP_VERSION = '0.4.4';
+const MCP_VERSION = '0.4.6';
 const MCP_AGENT_OPTIONS = ['auto', 'all', 'claude', 'gemini', 'codex'] as const;
 
 export const MCP_MEMORY_TYPES = [...MEMORY_TYPES];
@@ -16,6 +16,8 @@ const addMemorySchema = z.object({
     title: z.string(),
     summary: z.string(),
     type: z.enum(MEMORY_TYPES),
+    decision_class: z.enum(['architecture', 'behavioral', 'workflow']).optional(),
+    verified_change: z.boolean().optional(),
     what_changed: z.string().optional(),
     why_it_matters: z.string().optional(),
 });
@@ -76,6 +78,15 @@ export function getMcpTools() {
                         type: 'string',
                         enum: MCP_MEMORY_TYPES,
                         description: 'The category of this memory',
+                    },
+                    decision_class: {
+                        type: 'string',
+                        enum: ['architecture', 'behavioral', 'workflow'],
+                        description: 'Optional taxonomy for decision memories',
+                    },
+                    verified_change: {
+                        type: 'boolean',
+                        description: 'Set true when this memory claims verified behavioral change',
                     },
                     what_changed: { type: 'string', description: 'Detailed technical description of the change' },
                     why_it_matters: { type: 'string', description: 'Rationale and impact of this decision' },
@@ -194,6 +205,8 @@ export class AtlasForgeMcpServer {
                     title: parsed.title,
                     summary: parsed.summary,
                     memory_type: parsed.type,
+                    decision_class: parsed.decision_class,
+                    verified_change: parsed.verified_change ?? false,
                     what_changed: parsed.what_changed || 'N/A',
                     why_it_matters: parsed.why_it_matters || 'N/A',
                 });
@@ -250,6 +263,12 @@ export class AtlasForgeMcpServer {
                     snapshot: snapshot.snapshot,
                     promotion: snapshot.promotion,
                     agent_profile: snapshot.agent_profile,
+                    profile: snapshot.profile,
+                    selected_runtime: snapshot.selected_runtime,
+                    selected_runtime_ready: snapshot.selected_runtime_ready,
+                    professional_kit_ready: snapshot.professional_kit_ready,
+                    runtimes: snapshot.runtimes,
+                    runtime_readiness_dashboard: snapshot.runtime_readiness_dashboard,
                     agent_readiness_score: snapshot.agent_readiness_score,
                     level: snapshot.level,
                     gaps: snapshot.gaps,

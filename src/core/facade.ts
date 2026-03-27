@@ -50,6 +50,7 @@ export class AtlasForge {
         if (!fsm.existsSync(configPath)) {
             fsm.writeText(configPath, yaml.stringify(DEFAULTS));
         }
+        this.ensureProfileMode(root, requestedAgent, false);
 
         const adaptive = bootstrapAdaptiveArtifacts(root, { requestedAgent, dryRun: false });
         const forge = await AtlasForge.load(root);
@@ -68,6 +69,7 @@ export class AtlasForge {
             if (!fsm.existsSync(configPath)) {
                 fsm.writeText(configPath, yaml.stringify(DEFAULTS));
             }
+            this.ensureProfileMode(root, requestedAgent, dryRun);
         }
 
         const adaptive = bootstrapAdaptiveArtifacts(root, { requestedAgent, dryRun });
@@ -80,6 +82,23 @@ export class AtlasForge {
         const load = await ConfigLoader.loadWithMeta(root);
         const agentProfile = bootstrapAdaptiveArtifacts(root, { requestedAgent, dryRun: true }).agent_profile;
         return new AtlasForge(load.config, load.promotion_health, agentProfile, root, fsm, new StagingStore(fsm), new CanonicalStore(fsm), new SessionStore(fsm));
+    }
+
+    private static ensureProfileMode(root: string, requestedAgent: AgentSelection, dryRun: boolean) {
+        if (dryRun || requestedAgent !== 'all') return;
+        const fsm = new FileSystemManager(root);
+        if (!fsm.existsSync('config.yaml')) return;
+        try {
+            const parsed = yaml.parse(fsm.readText('config.yaml')) as Record<string, unknown> | null;
+            const next = {
+                ...DEFAULTS,
+                ...(parsed && typeof parsed === 'object' ? parsed : {}),
+                profile_mode: 'professional' as const,
+            };
+            fsm.writeText('config.yaml', yaml.stringify(next));
+        } catch {
+            // keep config write non-fatal during init/optimize
+        }
     }
 
     static async verify(root: string, requestedAgent: AgentSelection = 'auto') { return verifyOperation(root, requestedAgent); }

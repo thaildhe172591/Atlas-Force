@@ -1,29 +1,31 @@
-# Antigravity Integration (CLI-first)
+# Antigravity Integration (CLI orchestration)
 
 ## Quickstart
 
-1. `atlas-forge init --agent auto --json`
-2. `atlas-forge verify --json`
-3. `atlas-forge status --json`
-4. `atlas-forge search "<query>" --json`
-5. `atlas-forge start "<task summary>" --json`
-6. `atlas-forge doctor --json`
-7. `atlas-forge close "<outcome summary>" --json`
+```bash
+npx atlas-forge init --agent auto --json
+npx atlas-forge verify --json
+npx atlas-forge status --json
+npx atlas-forge search "<query>" --json
+npx atlas-forge start "<task summary>" --json
+npx atlas-forge doctor --json
+npx atlas-forge close "<outcome summary>" --json
+```
+
+Expected result:
+- orchestration flow uses the same readiness and promotion contracts
+- `runtime_readiness_dashboard` is present in `verify/status`
 
 ## Best Skill Stack
 
-- `brainstorming` for task framing before implementation starts.
-- `workflow-plan` for stepwise orchestration of larger work.
-- `verification-before-completion` before closing long-running tasks.
-
-## One-Screen Flow
-
-- Use `doctor` before `close` on long-running tasks.
-- Capture milestones with `add --json` during implementation.
-- Treat `close` as the only completion gate.
+- `brainstorming`
+- `workflow-plan`
+- `verification-before-completion`
 
 ## Troubleshooting
 
-- Invalid staged entries: inspect `doctor.checks` and repair.
-- No active session: rerun `start` before `add` or `close`.
-- Readiness issues: rerun `verify --json` and clear the gaps first.
+| Symptom | Fix |
+|---|---|
+| No active session on close | run `start` first |
+| Doctor warnings/fails | inspect `doctor.checks` and resolve before close |
+| Readiness mismatch | run `verify --json`, then optimize missing artifacts |

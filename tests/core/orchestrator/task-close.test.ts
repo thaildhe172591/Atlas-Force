@@ -28,14 +28,15 @@ describe('Orchestrator: Task Close', () => {
         await fs.rm(testRoot, { recursive: true, force: true });
     });
 
-    it('promotes entries on close', async () => {
+    it('does not auto-promote task-note summary entries on close', async () => {
         await taskStartOperation({ summary: 'Active' }, sessionStore, canonical, fsm);
         const res = await taskCloseOperation({ summary: 'Done', what_changed: 'All', why_it_matters: 'Business' }, sessionStore, staging, canonical, fsm, 'direct');
 
-        expect(res.promoted_entries).toHaveLength(1);
+        expect(res.promoted_entries).toHaveLength(0);
+        expect(res.skipped_entries).toHaveLength(1);
         expect(res.session.status).toBe('closed');
 
         const inCanonical = await canonical.all();
-        expect(inCanonical).toHaveLength(1);
+        expect(inCanonical).toHaveLength(0);
     });
 });

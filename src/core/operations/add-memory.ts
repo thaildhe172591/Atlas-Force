@@ -31,6 +31,11 @@ export async function addOperation(
         inferred_fields.push('tags');
     }
 
+    const decisionClass =
+        options.memory_type === 'decision'
+            ? (options.decision_class ?? 'workflow')
+            : options.decision_class;
+
     const entry: MemoryEntry = {
         record_id,
         memory_id,
@@ -49,6 +54,8 @@ export async function addOperation(
         lifecycle_state: 'staging',
         source: 'manual',
         confidence: 'high',
+        decision_class: decisionClass,
+        verified_change: options.verified_change ?? false,
         created_at: now,
         updated_at: now,
         metadata: { ...options.metadata }

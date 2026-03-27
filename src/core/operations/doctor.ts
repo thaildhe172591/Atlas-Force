@@ -2,6 +2,19 @@ import { MemoryEntrySchema } from '../schemas/entry-schema.js';
 import type { DoctorOptions, DoctorResult, DoctorCheck } from '../models/index.js';
 import type { StagingStore } from '../store/staging.js';
 import type { FileSystemManager } from '../store/fs.js';
+import type { MemoryEntry } from '../models/index.js';
+
+function requiresProof(entry: MemoryEntry): boolean {
+    if (entry.memory_type === 'bugfix' || entry.memory_type === 'incident') {
+        return true;
+    }
+
+    if (entry.memory_type !== 'decision') {
+        return false;
+    }
+
+    return entry.decision_class === 'behavioral' || entry.verified_change === true;
+}
 
 export async function doctorOperation(
     options: DoctorOptions,
@@ -30,8 +43,18 @@ export async function doctorOperation(
             checks.push({ name: 'duplicate', entry_id: entry.record_id, status: 'warn', message: 'Potential duplicate found in staging (title + summary overlap)' });
         }
 
-        // 3. Evidence Validation
+        // 3. Evidence Validation + proof contract
         if (entry.evidence_refs.length === 0) {
+            if (requiresProof(entry)) {
+                stats.fail++;
+                checks.push({
+                    name: 'proof',
+                    entry_id: entry.record_id,
+                    status: 'fail',
+                    message: 'Proof is required for this memory type but no evidence was attached',
+                });
+                continue;
+            }
             stats.warn++;
             checks.push({ name: 'evidence', entry_id: entry.record_id, status: 'warn', message: 'No evidence attached' });
         } else {

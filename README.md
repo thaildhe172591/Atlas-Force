@@ -1,53 +1,89 @@
 # Atlas Forge
 
-Local-first memory orchestration for AI agents working in real codebases.
+Local-first memory orchestration for AI agents in real repositories.
 
 [![NPM Version](https://img.shields.io/npm/v/@thaild12042003/atlas-forge.svg?style=flat-square&color=blue)](https://www.npmjs.com/package/@thaild12042003/atlas-forge)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D20-green.svg?style=flat-square)](https://nodejs.org)
 
-## Start Here
+## What's New in 0.4.6
 
-| If you want to... | Use this |
-|---|---|
-| Set up a new repo fast | `npx atlas-forge init --agent auto` |
-| Work in the terminal with Codex or Gemini | `npx atlas-forge ... --json` |
-| Use Claude or Cursor inside an IDE | MCP with `af_*` tools |
-| Get ready-made prompts | [docs/agents/prompt-kit.md](docs/agents/prompt-kit.md) |
+- EN: Curated Superpowers vendor subset for professional profile, smaller and cleaner package surface.
+- VN: Bộ vendor đã được curate có chủ đích cho profile professional, giảm nhiễu và nhẹ hơn khi phát hành.
+- EN: `status --json` and `verify --json` now expose a compact `runtime_readiness_dashboard`.
+- VN: `status --json` và `verify --json` đã có dashboard readiness ngắn theo từng runtime.
+- EN: Legacy migration hardening for old/large repos with stricter config normalization behavior.
+- VN: Tăng độ an toàn migration cho repo cũ/lớn với chuẩn hóa config chặt hơn.
 
-## Why Atlas Forge
+## Quick Decision
 
-Atlas Forge gives AI agents a persistent, inspectable memory layer inside your repository.
+| Need | Command | Expected JSON keys |
+|---|---|---|
+| Init one runtime | `npx atlas-forge init --agent codex --json` | `agent_profile`, `bootstrap.created`, `bootstrap.skipped` |
+| Init full entry layer | `npx atlas-forge init --agent all --json` | `bootstrap.entrypoints`, `bootstrap.bridges`, `bootstrap.external_patch_files` |
+| Re-sync safely | `npx atlas-forge optimize --agent all --dry-run --json` | `bootstrap.created`, `bootstrap.drifted`, `dry_run` |
+| Check workspace health | `npx atlas-forge verify --agent auto --json` | `profile`, `selected_runtime_ready`, `runtime_readiness_dashboard`, `gaps` |
+| Check live memory state | `npx atlas-forge status --agent auto --json` | `snapshot`, `promotion`, `runtime_readiness_dashboard`, `entrypoints` |
 
-- Local data in `.atlasforge/`
-- Adaptive agent bootstrap on `init --agent <auto|claude|gemini|codex>`
-- JSONL storage for transparency
-- Structured lifecycle: `start -> add -> doctor -> close`
-- Dual interface: CLI and MCP
-
-## Flow
+## One-Page Flow
 
 ```mermaid
 flowchart LR
-  A["init --agent auto"] --> B["bootstrap"]
-  B --> C["start"]
-  C --> D["add"]
-  D --> E["doctor"]
-  E --> F["close"]
-  F --> G["canonical"]
-  B --> H["verify / status"]
-  H --> I["agent readiness score"]
+  A["init --agent auto/all"] --> B["bootstrap entry layer"]
+  B --> C["status / search"]
+  C --> D["start"]
+  D --> E["implement + add"]
+  E --> F["doctor"]
+  F --> G["close"]
+  G --> H["canonical"]
 ```
 
-## Quick Reference
+## Runtime Readiness Dashboard
 
-| Need | Command | Expected output |
-|---|---|---|
-| Fresh workspace | `atlas-forge init --agent auto` | Creates `.atlasforge/` and agent guidance files |
-| Re-sync assets | `atlas-forge optimize --agent auto --dry-run` | Shows created/skipped artifacts without writing |
-| Check readiness | `atlas-forge verify --json` | Returns `agent_profile`, score, level, and gaps |
-| Start work | `atlas-forge start <summary> --json` | Opens active session |
-| Close work | `atlas-forge close <summary> --json` | Promotes valid staged entries to canonical |
+Use `verify --json` or `status --json` and read:
+
+- `selected_runtime_ready`: runtime currently applied by profile is ready or not.
+- `professional_kit_ready`: full multi-runtime kit readiness in professional mode.
+- `runtime_readiness_dashboard.summary`: quick global count.
+
+Sample shape:
+
+```json
+{
+  "profile": "professional",
+  "selected_runtime": "codex",
+  "selected_runtime_ready": true,
+  "professional_kit_ready": true,
+  "runtime_readiness_dashboard": {
+    "selected": { "agent": "codex", "ready": true, "patch_state": "required" },
+    "agents": {
+      "codex": { "ready": true, "patch_state": "required" },
+      "claude": { "ready": true, "patch_state": "required" },
+      "gemini": { "ready": true, "patch_state": "required" }
+    },
+    "summary": { "ready_count": 3, "total": 3, "not_ready": [] }
+  }
+}
+```
+
+## 60-Second Quickstart
+
+```bash
+npx atlas-forge init --agent auto --json
+npx atlas-forge status --json
+npx atlas-forge start "Implement feature X" --json
+npx atlas-forge add --type decision --title "Key decision" --summary "Short reason" --json
+npx atlas-forge doctor --json
+npx atlas-forge close "Done" --json
+```
+
+## Agent Quickstart
+
+| Agent | First command | Next command | Expected result |
+|---|---|---|---|
+| Codex | `npx atlas-forge init --agent codex --json` | `npx atlas-forge verify --agent codex --json` | CLI-first flow with readiness dashboard |
+| Claude | `af_init` | `af_status` | MCP tools active, snapshot + readiness available |
+| Gemini | `npx atlas-forge init --agent gemini --json` | `npx atlas-forge status --agent gemini --json` | Profile-specific docs + stable JSON health |
 
 ## Install
 
@@ -55,127 +91,76 @@ flowchart LR
 npm install @thaild12042003/atlas-forge
 ```
 
-## GitHub Packages
+### Registry Matrix
 
-A GitHub Actions release workflow is included to publish the package to GitHub Packages so it appears in the repository's **Packages** tab.
-This does not replace npmjs publishing; the release workflow now publishes to both registries in one run, using `NPM_TOKEN` for npmjs and `GITHUB_TOKEN` for GitHub Packages.
-Published package names:
-- npmjs: `@thaild12042003/atlas-forge`
-- GitHub Packages: `@thaildhe172591/atlas-forge`
+| Registry | Package | Purpose |
+|---|---|---|
+| npmjs | `@thaild12042003/atlas-forge` | Standard CLI/MCP usage and CI |
+| GitHub Packages | `@thaildhe172591/atlas-forge` | Repository package visibility and internal distribution |
 
-Recommended release flow:
+## Publish in 60s
 
 ```bash
+npm run lint
+npm test
+npm run test:smoke
+npm run build
+npm_config_cache=/tmp/.npm npm pack --dry-run
 npm version patch
 git push origin main --follow-tags
 ```
 
-Pushing the version tag triggers GitHub Actions to test, build, publish to npmjs, publish to GitHub Packages, and create the matching GitHub Release automatically.
+Tag push triggers `Publish Release Packages` workflow:
+- publish npmjs package
+- publish GitHub Packages package
+- create/update GitHub Release
 
-## Recommended Setup
+### Troubleshooting Order (Auth/Publish)
 
-| Scenario | Best choice | Why |
+| Step | Symptom | Fix |
 |---|---|---|
-| Team repo / CI | `npm i -D @thaild12042003/atlas-forge` | Locks the repo to one version and keeps `verify`/build reproducible |
-| Daily local work | `npx atlas-forge ...` | Uses the repo version without a global install |
-| Quick tryout | `npm i -g @thaild12042003/atlas-forge` | Fastest for experimenting across many repos |
+| 1 | `ENEEDAUTH` | ensure repo secret `NPM_TOKEN` exists and workflow uses it for npmjs |
+| 2 | `EOTP` | recreate npm token with 2FA bypass enabled for automation |
+| 3 | npmjs `E404` scoped package | use token from owner account of `@thaild12042003` scope |
+| 4 | GitHub Packages missing | verify tagged run succeeded and job has `packages: write` |
 
-## Best Skill Stack
+## CLI Commands
 
-| Agent | Best skill stack | Best for |
-|---|---|---|
-| Claude | `brainstorming` + `systematic-debugging` + `verification-before-completion` | MCP-first design, debugging, and clean handoff |
-| Cursor | `brainstorming` + `documentation-templates` + `verification-before-completion` | IDE-native planning, docs, and ready checks |
-| Codex | `systematic-debugging` + `writing-plans` + `verification-before-completion` | CLI-first feature work, bug fixes, and release safety |
-| Gemini | `writing-plans` + `clean-code` + `verification-before-completion` | Structured CLI work with minimal maintainable changes |
-| Antigravity | `brainstorming` + `workflow-plan` + `verification-before-completion` | Orchestrated tasks with strong promotion discipline |
-
-## 60-second Quick Start
-
-```bash
-npx atlas-forge init --agent auto
-npx atlas-forge start "Refactor auth module"
-npx atlas-forge add --type decision --title "JWT over session" --summary "Stateless scaling requirement"
-npx atlas-forge doctor
-npx atlas-forge close "Refactor complete"
-npx atlas-forge status
-```
-
-`init` and `optimize` are non-destructive: existing guidance/skill/workflow files are preserved.
-
-## CLI Surface
-
-All commands support `--json` for machine-readable automation.
+All commands support `--json`.
 
 | Command | Purpose |
 |---|---|
-| `atlas-forge init [--agent]` | Initialize `.atlasforge` and adaptive agent artifacts |
-| `atlas-forge optimize [--agent] [--dry-run]` | Re-sync adaptive artifacts without overwriting user files |
-| `atlas-forge start <summary>` | Start a task session |
-| `atlas-forge add --title --summary [--type]` | Add memory to staging |
-| `atlas-forge doctor` | Run diagnostics on staged entries |
-| `atlas-forge close <summary>` | Close active task and promote |
-| `atlas-forge search <query> [--limit]` | Search canonical memory |
-| `atlas-forge status [--agent]` | Show snapshot + promotion + agent readiness |
-| `atlas-forge verify [--agent]` | Verify workspace and report agent readiness score |
+| `atlas-forge init [--agent auto|all|claude|gemini|codex]` | Initialize workspace and entry layer |
+| `atlas-forge optimize [--agent ...] [--dry-run]` | Re-sync managed artifacts without silent overwrite |
+| `atlas-forge start <summary>` | Open task session |
+| `atlas-forge add --title --summary [--type]` | Stage memory entry |
+| `atlas-forge doctor` | Run diagnostics |
+| `atlas-forge close <summary>` | Close task and promote valid entries |
+| `atlas-forge search <query> [--limit]` | Search canonical memories |
+| `atlas-forge status [--agent ...]` | Snapshot + readiness + entry-layer metadata |
+| `atlas-forge verify [--agent ...]` | Structural checks + readiness checks |
 
-Promotion defaults to `direct` so valid staged entries are promoted to canonical on `close`.
+## Best Skill Stack
 
-Readiness fields in JSON output:
-- `agent_profile` (`requested_agent`, `detected_agent`, `applied_agent`, `confidence`, `signals`)
-- `agent_readiness_score` (0-10), `level` (`basic|good|excellent`), `gaps[]`
-
-### Supported Memory Types
-
-`onboarding`, `architecture`, `module`, `decision`, `bugfix`, `incident`, `task-note`, `policy`, `convention`, `code-pattern`
-
-## MCP Setup (Claude Desktop / Cursor)
-
-Use the published npm package:
-
-```json
-{
-  "mcpServers": {
-    "atlas-forge": {
-      "command": "npx",
-      "args": ["-y", "@thaild12042003/atlas-forge", "atlas-forge-mcp"]
-    }
-  }
-}
-```
-
-Alternative (if your MCP host supports direct binary execution):
-
-```json
-{
-  "mcpServers": {
-    "atlas-forge": {
-      "command": "atlas-forge-mcp",
-      "args": []
-    }
-  }
-}
-```
-
-### MCP Verification
-
-1. Start MCP host with the config above.
-2. Confirm tools are listed:
-   `af_init`, `af_start_task`, `af_add_memory`, `af_search`, `af_close_task`, `af_status`.
-3. Run `af_init` (optionally `{ "agent": "claude" }`) then `af_status` in a test workspace.
+| Agent | Stack | Best for |
+|---|---|---|
+| Codex | `systematic-debugging` + `writing-plans` + `verification-before-completion` | CLI implementation and release safety |
+| Claude | `brainstorming` + `systematic-debugging` + `verification-before-completion` | MCP-first design and diagnosis |
+| Gemini | `writing-plans` + `clean-code` + `verification-before-completion` | Minimal, structured CLI changes |
+| Cursor | `brainstorming` + `documentation-templates` + `verification-before-completion` | IDE-native build + docs updates |
+| Antigravity | `brainstorming` + `workflow-plan` + `verification-before-completion` | Long-running orchestration tasks |
 
 ## Guides
 
-- AI protocol: [AI_PROTOCOL.md](AI_PROTOCOL.md)
-- Claude: [docs/agents/claude.md](docs/agents/claude.md)
-- Cursor: [docs/agents/cursor.md](docs/agents/cursor.md)
-- Codex: [docs/agents/codex.md](docs/agents/codex.md)
-- Gemini: [docs/agents/gemini.md](docs/agents/gemini.md)
-- Antigravity: [docs/agents/antigravity.md](docs/agents/antigravity.md)
+- Tutorial: [TUTORIAL.md](TUTORIAL.md)
+- Release checklist: [docs/release-checklist.md](docs/release-checklist.md)
+- Support matrix: [docs/agents/support-matrix.md](docs/agents/support-matrix.md)
 - Prompt kit: [docs/agents/prompt-kit.md](docs/agents/prompt-kit.md)
-- Agent support matrix: [docs/agents/support-matrix.md](docs/agents/support-matrix.md)
-- Release checklist: [docs/release-checklist.md](https://github.com/thaildhe172591/Atlas-Force/blob/main/docs/release-checklist.md)
-- Changelog: [CHANGELOG.md](CHANGELOG.md)
+- Codex: [docs/agents/codex.md](docs/agents/codex.md)
+- Claude: [docs/agents/claude.md](docs/agents/claude.md)
+- Gemini: [docs/agents/gemini.md](docs/agents/gemini.md)
+- Cursor: [docs/agents/cursor.md](docs/agents/cursor.md)
+- Antigravity: [docs/agents/antigravity.md](docs/agents/antigravity.md)
 
 ## License
 

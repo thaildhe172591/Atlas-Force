@@ -51,6 +51,10 @@ describe('Init bootstrap + promotion migration', () => {
         expect(bootstrap.entrypoints.some((artifact) => artifact.id === 'atlas-forge-skill')).toBe(true);
         expect(bootstrap.bridges.some((artifact) => artifact.id === 'atlas-forge-bridge-gemini-kit')).toBe(true);
         expect(bootstrap.external_patch_files.some((artifact) => artifact.id === 'atlas-forge-install-gemini-commands')).toBe(true);
+        const sharedSkill = bootstrap.entrypoints.find((artifact) => artifact.id === 'atlas-forge-skill');
+        expect(sharedSkill?.management_tier).toBe('atlas-managed');
+        expect(sharedSkill?.atlas_owner).toBe('atlas');
+        expect(sharedSkill?.conflict_policy).toBe('preserve-user');
     });
 
     it('does not overwrite existing agent bootstrap files', async () => {
@@ -113,8 +117,12 @@ describe('Init bootstrap + promotion migration', () => {
         expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'install', 'claude', 'claude-desktop-config.patch.json'))).toBe(true);
         expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'install', 'codex', 'atlas-forge-skill.md'))).toBe(true);
         expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'install', 'gemini', 'gemini-commands.md'))).toBe(true);
+        expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'skills', 'superpowers', 'brainstorming.md'))).toBe(true);
+        expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'skills', 'superpowers', 'writing-skills.md'))).toBe(false);
         expect(bootstrap.entrypoints.some((artifact) => artifact.id === 'atlas-forge-command-feature')).toBe(true);
         expect(bootstrap.bridges.some((artifact) => artifact.id === 'atlas-forge-bridge-superpower')).toBe(true);
         expect(bootstrap.external_patch_files.some((artifact) => artifact.id === 'atlas-forge-install-claude-config')).toBe(true);
+        const config = fs.readFileSync(path.join(testRoot, '.atlasforge', 'config.yaml'), 'utf-8');
+        expect(config).toContain('profile_mode: professional');
     });
 });

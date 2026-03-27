@@ -58,6 +58,12 @@ describe('MCP smoke', () => {
         expect(statusPayload.snapshot.staging_count).toBeGreaterThan(0);
         expect(statusPayload.promotion.effective_mode).toBe('direct');
         expect(statusPayload.agent_profile.applied_agent).toBe('claude');
+        expect(['core', 'professional']).toContain(statusPayload.profile);
+        expect(typeof statusPayload.selected_runtime_ready).toBe('boolean');
+        expect(typeof statusPayload.professional_kit_ready).toBe('boolean');
+        expect(statusPayload.runtimes).toBeTruthy();
+        expect(statusPayload.runtime_readiness_dashboard).toBeTruthy();
+        expect(statusPayload.runtime_readiness_dashboard.summary.total).toBe(3);
         expect(typeof statusPayload.agent_readiness_score).toBe('number');
         expect(Array.isArray(statusPayload.entrypoints)).toBe(true);
         expect(Array.isArray(statusPayload.bridges)).toBe(true);

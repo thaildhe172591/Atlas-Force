@@ -34,7 +34,7 @@ describe('Facade: AtlasForge Smoke Test', () => {
 
         // 4. Add manual entry
         await forge.add({
-            memory_type: 'task-note',
+            memory_type: 'code-pattern',
             title: 'Session management',
             summary: 'Implemented SessionStore.',
             what_changed: 'src/core/store/sessions.ts',
@@ -43,16 +43,16 @@ describe('Facade: AtlasForge Smoke Test', () => {
 
         // 5. Close task (promotes all valid staged entries in direct mode)
         const close = await forge.taskClose({ summary: 'Facade finished', promote_mode: 'direct' });
-        expect(close.promoted_entries).toHaveLength(2);
+        expect(close.promoted_entries).toHaveLength(1);
 
         // 6. Verify status
         const status = await forge.status();
-        expect(status.snapshot.canonical_count).toBe(2);
+        expect(status.snapshot.canonical_count).toBe(1);
         expect(status.snapshot.staging_count).toBe(0);
 
         // 7. Search (searches canonical)
-        const search = await forge.search({ query: 'Facade' });
+        const search = await forge.search({ query: 'Session management' });
         expect(search).toHaveLength(1);
-        expect(search[0].entry.title).toBe('Implement Engine Facade');
+        expect(search[0].entry.title).toBe('Session management');
     });
 });
