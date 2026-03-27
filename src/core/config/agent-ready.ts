@@ -24,10 +24,9 @@ const CANONICAL_ID = 'atlas-forge';
 const DISPLAY_NAME = 'Atlas Forge';
 const INVOCATION_ALIASES = ['/atlas', '$Atlas Forge', 'atlas-forge'];
 const VENDOR_PROVENANCE = 'vendor:obra/superpowers#curated-v1';
-const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const VENDOR_ROOT_CANDIDATES = [
-    path.join(PACKAGE_ROOT, 'vendor', 'superpowers-curated'),
-    path.join(PACKAGE_ROOT, 'vendor', 'superpowers'),
+    'vendor/superpowers-curated',
+    'vendor/superpowers',
 ];
 const CURATED_VENDOR_SKILLS = [
     'brainstorming',
@@ -104,6 +103,23 @@ type WorkspacePolicy = {
     profile_mode: ProfileMode;
     runtime_patch_state: Record<AgentKind, RuntimePatchState>;
 };
+
+export function resolveRepoRoot(startDir = path.dirname(fileURLToPath(import.meta.url))): string {
+    let current = path.resolve(startDir);
+    while (true) {
+        const pkgPath = path.join(current, 'package.json');
+        const vendorPath = path.join(current, 'vendor', 'superpowers-curated');
+        if (fs.existsSync(pkgPath) && fs.existsSync(vendorPath)) {
+            return current;
+        }
+        const parent = path.dirname(current);
+        if (parent === current) {
+            break;
+        }
+        current = parent;
+    }
+    return path.resolve(startDir);
+}
 
 function normalizedArtifact(artifact: DesiredArtifact): Required<Omit<DesiredArtifact, 'legacyContents' | 'upstreamPath'>> & Pick<DesiredArtifact, 'legacyContents' | 'upstreamPath'> {
     return {
@@ -475,9 +491,11 @@ function readTextSafe(filePath: string): string | null {
 }
 
 function resolveVendorSuperpowersRoot(): string | null {
+    const packageRoot = resolveRepoRoot();
     for (const candidate of VENDOR_ROOT_CANDIDATES) {
-        if (fs.existsSync(candidate)) {
-            return candidate;
+        const absoluteCandidate = path.join(packageRoot, candidate);
+        if (fs.existsSync(absoluteCandidate)) {
+            return absoluteCandidate;
         }
     }
     return null;
