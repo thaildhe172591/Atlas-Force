@@ -1,16 +1,14 @@
-# GEMINI.md - Atlas Forge Agent Protocol
+# GEMINI.md - Atlas Forge Gemini Launch
 
-Use Atlas Forge as the memory system of record for this repository.
+Use `.atlasforge/skills/atlas-forge.md` for the shared policy.
 
-## Required workflow
-1. `atlas-forge status --json`
-2. `atlas-forge search "<query>" --json`
-3. `atlas-forge start "<task summary>" --json`
-4. `atlas-forge add --type decision --title "<title>" --summary "<summary>" --json`
-5. `atlas-forge doctor --json`
-6. `atlas-forge close "<outcome summary>" --json`
+## Preferred runtime
+- CLI-first and prompt-driven workflow
 
-## Notes
-- Use `AGENTS.md` for shared repo rules.
-- Prefer `--json` so automation can parse results safely.
-- For cross-agent standards, read `AI_PROTOCOL.md`.
+## Recommended invocation
+- `/atlas`
+- `$Atlas Forge`
+
+## Supporting files
+- bridge: `.atlasforge/bridges/atlas-forge+gemini-kit.md`
+- install patch: `.atlasforge/install/gemini/gemini-commands.md`

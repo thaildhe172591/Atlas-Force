@@ -1,15 +1,14 @@
-# CLAUDE.md - Atlas Forge MCP Workflow
+# CLAUDE.md - Atlas Forge Claude Launch
 
-Use Atlas Forge via MCP-first workflow for Claude.
+Use `.atlasforge/skills/atlas-forge.md` for the shared policy.
 
-## Required sequence
-1. `af_status`
-2. `af_search`
-3. `af_start_task`
-4. `af_add_memory` during milestones
-5. `af_close_task`
+## Preferred runtime
+- MCP-first workflow for Claude Desktop or MCP-capable hosts
 
-## Rules
-- Keep payloads structured and concise.
-- Capture decisions and reusable patterns as memories.
-- Always close the task with an explicit outcome summary.
+## Recommended invocation
+- `/atlas`
+- `$Atlas Forge`
+
+## Supporting files
+- bridge: `.atlasforge/bridges/atlas-forge+claude-kit.md`
+- install patch: `.atlasforge/install/claude/claude-desktop-config.patch.json`

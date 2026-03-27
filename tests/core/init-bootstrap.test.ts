@@ -23,6 +23,10 @@ describe('Init bootstrap + promotion migration', () => {
 
         expect(fs.existsSync(path.join(testRoot, 'AGENTS.md'))).toBe(true);
         expect(fs.existsSync(path.join(testRoot, 'GEMINI.md'))).toBe(true);
+        expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'skills', 'atlas-forge.md'))).toBe(true);
+        expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'commands', 'init-scan.md'))).toBe(true);
+        expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'bridges', 'atlas-forge+gemini-kit.md'))).toBe(true);
+        expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'install', 'gemini', 'gemini-commands.md'))).toBe(true);
         expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'skills', 'clean-code.md'))).toBe(true);
         expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'skills', 'brainstorming.md'))).toBe(true);
         expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'skills', 'workflow.md'))).toBe(true);
@@ -31,6 +35,10 @@ describe('Init bootstrap + promotion migration', () => {
 
         expect(bootstrap.created).toContain('AGENTS.md');
         expect(bootstrap.created).toContain('GEMINI.md');
+        expect(bootstrap.created).toContain('.atlasforge/skills/atlas-forge.md');
+        expect(bootstrap.created).toContain('.atlasforge/commands/init-scan.md');
+        expect(bootstrap.created).toContain('.atlasforge/bridges/atlas-forge+gemini-kit.md');
+        expect(bootstrap.created).toContain('.atlasforge/install/gemini/gemini-commands.md');
         expect(bootstrap.created).toContain('.atlasforge/skills/clean-code.md');
         expect(bootstrap.created).toContain('.atlasforge/skills/brainstorming.md');
         expect(bootstrap.created).toContain('.atlasforge/skills/workflow.md');
@@ -40,6 +48,9 @@ describe('Init bootstrap + promotion migration', () => {
 
         const config = fs.readFileSync(path.join(testRoot, '.atlasforge', 'config.yaml'), 'utf-8');
         expect(config).toContain('promote_mode: direct');
+        expect(bootstrap.entrypoints.some((artifact) => artifact.id === 'atlas-forge-skill')).toBe(true);
+        expect(bootstrap.bridges.some((artifact) => artifact.id === 'atlas-forge-bridge-gemini-kit')).toBe(true);
+        expect(bootstrap.external_patch_files.some((artifact) => artifact.id === 'atlas-forge-install-gemini-commands')).toBe(true);
     });
 
     it('does not overwrite existing agent bootstrap files', async () => {
@@ -87,5 +98,23 @@ describe('Init bootstrap + promotion migration', () => {
         expect(bootstrap.dry_run).toBe(true);
         expect(bootstrap.created).toContain('CODEX.md');
         expect(fs.existsSync(path.join(testRoot, 'CODEX.md'))).toBe(false);
+    });
+
+    it('creates the full entry layer for --agent all', async () => {
+        const { bootstrap, agent_profile } = await AtlasForge.initWithReport(testRoot, 'all');
+
+        expect(agent_profile.requested_agent).toBe('all');
+        expect(fs.existsSync(path.join(testRoot, 'AGENTS.md'))).toBe(true);
+        expect(fs.existsSync(path.join(testRoot, 'CLAUDE.md'))).toBe(true);
+        expect(fs.existsSync(path.join(testRoot, 'GEMINI.md'))).toBe(true);
+        expect(fs.existsSync(path.join(testRoot, 'CODEX.md'))).toBe(true);
+        expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'commands', 'feature.md'))).toBe(true);
+        expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'bridges', 'atlas-forge+superpower.md'))).toBe(true);
+        expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'install', 'claude', 'claude-desktop-config.patch.json'))).toBe(true);
+        expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'install', 'codex', 'atlas-forge-skill.md'))).toBe(true);
+        expect(fs.existsSync(path.join(testRoot, '.atlasforge', 'install', 'gemini', 'gemini-commands.md'))).toBe(true);
+        expect(bootstrap.entrypoints.some((artifact) => artifact.id === 'atlas-forge-command-feature')).toBe(true);
+        expect(bootstrap.bridges.some((artifact) => artifact.id === 'atlas-forge-bridge-superpower')).toBe(true);
+        expect(bootstrap.external_patch_files.some((artifact) => artifact.id === 'atlas-forge-install-claude-config')).toBe(true);
     });
 });

@@ -8,7 +8,7 @@ import { ADAPTIVE_AGENTS, isAgentSelection } from '../core/config/agent-ready.js
 import { MEMORY_TYPES } from '../core/models/states.js';
 import type { AgentSelection } from '../core/models/index.js';
 
-const CLI_VERSION = '0.4.2';
+const CLI_VERSION = '0.4.3';
 
 class CliValidationError extends Error {}
 
@@ -71,7 +71,7 @@ function validateMemoryType(value: string) {
 
 function validateAgent(value: string): AgentSelection {
     if (!isAgentSelection(value)) {
-        throw new CliValidationError(`Invalid agent "${value}". Supported values: auto, ${ADAPTIVE_AGENTS.join(', ')}`);
+        throw new CliValidationError(`Invalid agent "${value}". Supported values: auto, all, ${ADAPTIVE_AGENTS.join(', ')}`);
     }
     return value;
 }
@@ -88,7 +88,7 @@ export function createProgram() {
     program
         .command('init')
         .description('Initialize Atlas Forge in the current directory')
-        .option('-a, --agent <agent>', 'Agent profile (auto, claude, gemini, codex)', 'auto')
+        .option('-a, --agent <agent>', 'Agent profile (auto, all, claude, gemini, codex)', 'auto')
         .option('-j, --json', 'Output machine-readable JSON')
         .action(async (options: { agent: string; json?: boolean }) => {
             const json = Boolean(options.json);
@@ -123,7 +123,7 @@ export function createProgram() {
     program
         .command('optimize')
         .description('Re-sync adaptive agent artifacts for current workspace')
-        .option('-a, --agent <agent>', 'Agent profile (auto, claude, gemini, codex)', 'auto')
+        .option('-a, --agent <agent>', 'Agent profile (auto, all, claude, gemini, codex)', 'auto')
         .option('--dry-run', 'Preview changes without writing files')
         .option('-j, --json', 'Output machine-readable JSON')
         .action(async (options: { agent: string; dryRun?: boolean; json?: boolean }) => {
@@ -278,7 +278,7 @@ export function createProgram() {
     program
         .command('status')
         .description('Show current status and health')
-        .option('-a, --agent <agent>', 'Agent profile (auto, claude, gemini, codex)', 'auto')
+        .option('-a, --agent <agent>', 'Agent profile (auto, all, claude, gemini, codex)', 'auto')
         .option('-j, --json', 'Output machine-readable JSON')
         .action(async (options: { agent: string; json?: boolean }) => {
             const json = Boolean(options.json);
@@ -298,6 +298,9 @@ export function createProgram() {
                     agent_readiness_score: status.agent_readiness_score,
                     level: status.level,
                     gaps: status.gaps,
+                    entrypoints: status.entrypoints,
+                    bridges: status.bridges,
+                    external_patch_files: status.external_patch_files,
                     active_session: active,
                 };
 
@@ -396,7 +399,7 @@ export function createProgram() {
     program
         .command('verify')
         .description('Verify workspace readiness for Atlas Forge and MCP integration')
-        .option('-a, --agent <agent>', 'Agent profile (auto, claude, gemini, codex)', 'auto')
+        .option('-a, --agent <agent>', 'Agent profile (auto, all, claude, gemini, codex)', 'auto')
         .option('-j, --json', 'Output machine-readable JSON')
         .action(async (options: { agent: string; json?: boolean }) => {
             const json = Boolean(options.json);
@@ -414,6 +417,9 @@ export function createProgram() {
                     agent_readiness_score: result.agent_readiness_score,
                     level: result.level,
                     gaps: result.gaps,
+                    entrypoints: result.entrypoints,
+                    bridges: result.bridges,
+                    external_patch_files: result.external_patch_files,
                 };
 
                 if (json) {

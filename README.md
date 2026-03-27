@@ -55,6 +55,19 @@ flowchart LR
 npm install @thaild12042003/atlas-forge
 ```
 
+## GitHub Packages
+
+A GitHub Actions release workflow is included to publish the package to GitHub Packages so it appears in the repository's **Packages** tab.
+This does not replace npmjs publishing; the release workflow now publishes to both registries in one run, using `NPM_TOKEN` for npmjs and `GITHUB_TOKEN` for GitHub Packages.
+Recommended release flow:
+
+```bash
+npm version patch
+git push origin main --follow-tags
+```
+
+Pushing the version tag triggers GitHub Actions to test, build, publish to npmjs, publish to GitHub Packages, and create the matching GitHub Release automatically.
+
 ## Recommended Setup
 
 | Scenario | Best choice | Why |

@@ -39,6 +39,9 @@ describe('MCP smoke', () => {
         expect(initPayload.ok).toBe(true);
         expect(initPayload.agent_profile.applied_agent).toBe('claude');
         expect(Array.isArray(initPayload.bootstrap.created)).toBe(true);
+        expect(Array.isArray(initPayload.bootstrap.entrypoints)).toBe(true);
+        expect(Array.isArray(initPayload.bootstrap.bridges)).toBe(true);
+        expect(Array.isArray(initPayload.bootstrap.external_patch_files)).toBe(true);
 
         const start = await server.handleToolCall('af_start_task', { summary: 'MCP smoke task' });
         expect(parseToolText(start).session.status).toBe('active');
@@ -56,6 +59,9 @@ describe('MCP smoke', () => {
         expect(statusPayload.promotion.effective_mode).toBe('direct');
         expect(statusPayload.agent_profile.applied_agent).toBe('claude');
         expect(typeof statusPayload.agent_readiness_score).toBe('number');
+        expect(Array.isArray(statusPayload.entrypoints)).toBe(true);
+        expect(Array.isArray(statusPayload.bridges)).toBe(true);
+        expect(Array.isArray(statusPayload.external_patch_files)).toBe(true);
 
         const close = await server.handleToolCall('af_close_task', { summary: 'MCP smoke done' });
         const closePayload = parseToolText(close);
@@ -82,5 +88,13 @@ describe('MCP smoke', () => {
         const initializedServer = new AtlasForgeMcpServer(TEST_ROOT);
         await initializedServer.handleToolCall('af_init', { agent: 'gemini' });
         await expect(initializedServer.handleToolCall('af_close_task', { summary: 'No session' })).rejects.toThrow(/no active session/i);
+    });
+
+    it('accepts agent=all during MCP init', async () => {
+        const server = new AtlasForgeMcpServer(TEST_ROOT);
+        const init = await server.handleToolCall('af_init', { agent: 'all' });
+        const payload = parseToolText(init);
+        expect(payload.agent_profile.requested_agent).toBe('all');
+        expect(payload.bootstrap.external_patch_files.length).toBeGreaterThanOrEqual(3);
     });
 });

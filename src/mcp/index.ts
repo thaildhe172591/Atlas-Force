@@ -7,8 +7,8 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { AtlasForge } from '../core/facade.js';
 import { MEMORY_TYPES } from '../core/models/states.js';
 
-const MCP_VERSION = '0.4.2';
-const MCP_AGENT_OPTIONS = ['auto', 'claude', 'gemini', 'codex'] as const;
+const MCP_VERSION = '0.4.3';
+const MCP_AGENT_OPTIONS = ['auto', 'all', 'claude', 'gemini', 'codex'] as const;
 
 export const MCP_MEMORY_TYPES = [...MEMORY_TYPES];
 
@@ -48,7 +48,7 @@ export function getMcpTools() {
                     agent: {
                         type: 'string',
                         enum: [...MCP_AGENT_OPTIONS],
-                        description: 'Optional agent profile override (auto, claude, gemini, codex)',
+                        description: 'Optional agent profile override (auto, all, claude, gemini, codex)',
                     },
                 },
             },
@@ -253,6 +253,9 @@ export class AtlasForgeMcpServer {
                     agent_readiness_score: snapshot.agent_readiness_score,
                     level: snapshot.level,
                     gaps: snapshot.gaps,
+                    entrypoints: snapshot.entrypoints,
+                    bridges: snapshot.bridges,
+                    external_patch_files: snapshot.external_patch_files,
                     active_session: active,
                 });
             }

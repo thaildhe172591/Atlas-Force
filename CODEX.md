@@ -1,16 +1,14 @@
-# CODEX.md - Atlas Forge Codex Workflow
+# CODEX.md - Atlas Forge Codex Launch
 
-Codex should use Atlas Forge CLI in JSON mode.
+Use `.atlasforge/skills/atlas-forge.md` for the shared policy.
 
-## Task lifecycle
-1. `atlas-forge status --json`
-2. `atlas-forge search "<query>" --json`
-3. `atlas-forge start "<task summary>" --json`
-4. `atlas-forge add --type code-pattern --title "<title>" --summary "<summary>" --json`
-5. `atlas-forge doctor --json`
-6. `atlas-forge close "<outcome summary>" --json`
+## Preferred runtime
+- CLI-first workflow with JSON output
 
-## Notes
-- Use `AGENTS.md` for shared repo rules.
-- Prefer `--json` so automation can parse results safely.
-- Run `atlas-forge verify --json` when you need setup/readiness checks.
+## Recommended invocation
+- `/atlas`
+- `$Atlas Forge`
+
+## Supporting files
+- bridge: `.atlasforge/bridges/atlas-forge+codex-kit.md`
+- install patch: `.atlasforge/install/codex/atlas-forge-skill.md`

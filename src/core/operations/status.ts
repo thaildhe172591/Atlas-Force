@@ -1,7 +1,7 @@
 import type { StagingStore } from '../store/staging.js';
 import type { CanonicalStore } from '../store/canonical.js';
 import type { FileSystemManager } from '../store/fs.js';
-import type { AgentReadiness, StatusResult } from '../models/index.js';
+import type { AgentReadiness, InitBootstrapReport, StatusResult } from '../models/index.js';
 import { DEFAULTS } from '../config/defaults.js';
 
 export async function statusOperation(
@@ -13,7 +13,8 @@ export async function statusOperation(
         effective_mode: DEFAULTS.promote_mode,
         migration_applied: false,
     },
-    readiness: AgentReadiness
+    readiness: AgentReadiness,
+    entryLayer: Pick<InitBootstrapReport, 'entrypoints' | 'bridges' | 'external_patch_files'>
 ): Promise<StatusResult> {
     const sCount = (await staging.getAll()).length;
     const cCount = (await canonical.all()).length;
@@ -24,5 +25,8 @@ export async function statusOperation(
         agent_readiness_score: readiness.agent_readiness_score,
         level: readiness.level,
         gaps: readiness.gaps,
+        entrypoints: entryLayer.entrypoints,
+        bridges: entryLayer.bridges,
+        external_patch_files: entryLayer.external_patch_files,
     };
 }

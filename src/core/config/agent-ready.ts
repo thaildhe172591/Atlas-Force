@@ -1,147 +1,767 @@
+import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { AgentKind, AgentProfile, AgentReadiness, AgentSelection, InitBootstrapReport } from '../models/operations.js';
+import * as yaml from 'yaml';
+import type {
+    AgentConfidence,
+    AgentKind,
+    AgentProfile,
+    AgentReadiness,
+    AgentSelection,
+    EntryArtifactKind,
+    EntryArtifactMetadata,
+    InitBootstrapReport,
+} from '../models/operations.js';
 import type { PromotionModeHealth } from '../models/config.js';
 import { DEFAULTS } from './defaults.js';
 
 export const ADAPTIVE_AGENTS = ['claude', 'gemini', 'codex'] as const;
+const AGENT_SELECTIONS = ['auto', 'all', ...ADAPTIVE_AGENTS] as const;
+const GENERATED_BY = 'atlas-forge' as const;
+const MANAGED_VERSION = '0.4.3';
+const CANONICAL_ID = 'atlas-forge';
+const DISPLAY_NAME = 'Atlas Forge';
+const INVOCATION_ALIASES = ['/atlas', '$Atlas Forge', 'atlas-forge'];
 
-export function isAgentSelection(value: string): value is AgentSelection {
-    return value === 'auto' || value === 'claude' || value === 'gemini' || value === 'codex';
+type ArtifactCategory = 'entrypoints' | 'bridges' | 'external_patch_files';
+
+type DesiredArtifact = {
+    id: string;
+    kind: EntryArtifactKind;
+    category: ArtifactCategory;
+    path: string;
+    agentTargets: AgentKind[];
+    invocationAliases?: string[];
+    body: string;
+    legacyContents?: string[];
+};
+
+type ManagedHeader = {
+    generated_by: string;
+    artifact_id: string;
+    managed: boolean;
+    version: string;
+    canonical_id: string;
+    display_name: string;
+    invocation_aliases: string[];
+    content_sha256: string;
+};
+
+type ParsedManagedFile = {
+    header: ManagedHeader | null;
+    body: string;
+};
+
+type BootstrapOptions = {
+    requestedAgent?: AgentSelection;
+    dryRun?: boolean;
+};
+
+function sharedSkillBody() {
+    return `# ${DISPLAY_NAME}
+
+Use ${DISPLAY_NAME} as the shared memory and workflow layer for this repository.
+
+## Identity
+- display name: \`${DISPLAY_NAME}\`
+- canonical id: \`${CANONICAL_ID}\`
+- invocation aliases: \`${INVOCATION_ALIASES.join('`, `')}\`
+
+## Workflow policy
+- States: \`uninitialized\`, \`ready\`, \`session-open\`, \`read-only-analysis\`, \`implementation\`, \`verification\`, \`closed\`, \`failed\`
+- Required gates:
+  - run \`status\` or \`verify\` before execution if initialization is uncertain
+  - run \`doctor\` before \`close\` for any task that wrote memory
+  - \`close\` is only valid when a task session is open
+- Optional steps:
+  - \`search\` is optional when context is already explicit
+  - \`add\` is optional for read-only or advisory work
+  - \`start\` is optional only for pure readiness checks
+
+## Memory policy
+- Write durable memory only for reusable patterns, non-obvious decisions, architecture/module knowledge, or bugfix lessons likely to recur.
+- Do not write durable memory for transient scans, speculative ideas, duplicated code summaries, or raw logs.
+- Search before writing. Compress or skip duplicates.
+- Treat task-local notes as temporary until promoted by a valid \`close\`.
+
+## Composition policy
+- Bridge files are composition policies, not runtime plugins.
+- Precedence:
+  1. Atlas Forge shared skill policy
+  2. Agent launch file
+  3. One explicit bridge policy
+  4. User task content
+- If multiple bridges are requested, the first explicit bridge wins and the rest should be ignored.
+`;
 }
 
-const SHARED_ROOT_GUIDANCE = {
-    path: 'AGENTS.md',
-    content: `# AGENTS.md - Atlas Forge Shared Guidance
+function sharedRootBody() {
+    return `# AGENTS.md - ${DISPLAY_NAME} Launch Layer
 
-Use Atlas Forge as the shared memory workflow for this repository.
+Use \`.atlasforge/skills/atlas-forge.md\` as the single source of truth for Atlas Forge behavior.
 
-## Common rules
-- Run \`status\` or \`af_status\` before editing.
-- Search existing memory before making changes.
-- Capture important decisions with \`add\`.
-- Run \`doctor\` before \`close\`.
-- Prefer \`--json\` for machine-readable output.
+## Shared entrypoints
+- shared skill: \`.atlasforge/skills/atlas-forge.md\`
+- command templates: \`.atlasforge/commands/\`
+- bridge policies: \`.atlasforge/bridges/\`
+- install patches: \`.atlasforge/install/\`
 
-## Agent files
+## Agent launch files
 - Claude: \`CLAUDE.md\`
 - Gemini: \`GEMINI.md\`
 - Codex: \`CODEX.md\`
 
-## Shared workflow
-1. \`status\`
-2. \`search\`
-3. \`start\`
-4. \`add\`
-5. \`doctor\`
-6. \`close\`
-`,
-};
+## Invocation aliases
+- \`${INVOCATION_ALIASES.join('`\n- `')}\`
+`;
+}
 
-const ROOT_GUIDANCE_TEMPLATES: Record<AgentKind, { path: string; content: string }> = {
-    claude: {
-        path: 'CLAUDE.md',
-        content: `# CLAUDE.md - Atlas Forge MCP Workflow
+function claudeGuideBody() {
+    return `# CLAUDE.md - ${DISPLAY_NAME} Claude Launch
 
-Use Atlas Forge via MCP-first workflow for Claude.
+Use \`.atlasforge/skills/atlas-forge.md\` for the shared policy.
 
-## Required sequence
-1. \`af_status\`
-2. \`af_search\`
-3. \`af_start_task\`
-4. \`af_add_memory\` during milestones
-5. \`af_close_task\`
+## Preferred runtime
+- MCP-first workflow for Claude Desktop or MCP-capable hosts
 
-## Rules
-- Keep payloads structured and concise.
-- Capture decisions and reusable patterns as memories.
-- Always close the task with an explicit outcome summary.
-`,
-    },
-    gemini: {
-        path: 'GEMINI.md',
-        content: `# GEMINI.md - Atlas Forge Agent Protocol
+## Recommended invocation
+- \`${INVOCATION_ALIASES[0]}\` for short command intent
+- \`${INVOCATION_ALIASES[1]}\` as the shared skill name
 
-Use Atlas Forge as the memory system of record for this repository.
+## Supporting files
+- bridge: \`.atlasforge/bridges/atlas-forge+claude-kit.md\`
+- install patch: \`.atlasforge/install/claude/claude-desktop-config.patch.json\`
+`;
+}
 
-## Required workflow
-1. \`atlas-forge status --json\`
-2. \`atlas-forge search "<query>" --json\`
-3. \`atlas-forge start "<task summary>" --json\`
-4. \`atlas-forge add --type decision --title "<title>" --summary "<summary>" --json\`
-5. \`atlas-forge doctor --json\`
-6. \`atlas-forge close "<outcome summary>" --json\`
-`,
-    },
-    codex: {
-        path: 'CODEX.md',
-        content: `# CODEX.md - Atlas Forge Codex Workflow
+function geminiGuideBody() {
+    return `# GEMINI.md - ${DISPLAY_NAME} Gemini Launch
 
-Codex should use Atlas Forge CLI in JSON mode.
+Use \`.atlasforge/skills/atlas-forge.md\` for the shared policy.
 
-## Task lifecycle
-1. \`atlas-forge status --json\`
-2. \`atlas-forge search "<query>" --json\`
-3. \`atlas-forge start "<task summary>" --json\`
-4. \`atlas-forge add --type code-pattern --title "<title>" --summary "<summary>" --json\`
-5. \`atlas-forge doctor --json\`
-6. \`atlas-forge close "<outcome summary>" --json\`
-`,
-    },
-};
+## Preferred runtime
+- CLI-first and prompt-driven workflow
 
-const SKILL_TEMPLATES: Record<string, string> = {
-    'clean-code.md': `# clean-code
+## Recommended invocation
+- \`${INVOCATION_ALIASES[0]}\`
+- \`${INVOCATION_ALIASES[1]}\`
+
+## Supporting files
+- bridge: \`.atlasforge/bridges/atlas-forge+gemini-kit.md\`
+- install patch: \`.atlasforge/install/gemini/gemini-commands.md\`
+`;
+}
+
+function codexGuideBody() {
+    return `# CODEX.md - ${DISPLAY_NAME} Codex Launch
+
+Use \`.atlasforge/skills/atlas-forge.md\` for the shared policy.
+
+## Preferred runtime
+- CLI-first workflow with JSON output
+
+## Recommended invocation
+- \`${INVOCATION_ALIASES[0]}\`
+- \`${INVOCATION_ALIASES[1]}\`
+
+## Supporting files
+- bridge: \`.atlasforge/bridges/atlas-forge+codex-kit.md\`
+- install patch: \`.atlasforge/install/codex/atlas-forge-skill.md\`
+`;
+}
+
+function cleanCodeBody() {
+    return `# clean-code
 
 - Keep functions small and names explicit.
 - Prefer straightforward control flow over cleverness.
-- Remove dead code and unused imports/variables.
-`,
-    'brainstorming.md': `# brainstorming
+- Remove dead code and unused imports or variables.
+`;
+}
+
+function brainstormingBody() {
+    return `# brainstorming
 
 - Clarify goals, constraints, and non-goals before coding.
 - Compare 2-3 approaches and choose one with rationale.
 - Define acceptance criteria before implementation.
-`,
-    'workflow.md': `# workflow
+`;
+}
 
-Standard task flow:
-1. \`status\` + \`search\`
-2. \`start\`
-3. implement + \`add\`
-4. \`doctor\`
-5. \`close\`
-`,
-};
+function workflowBody() {
+    return `# workflow
 
-const WORKFLOW_TEMPLATES: Record<string, string> = {
-    'task-lifecycle.md': `# task-lifecycle
+Standard Atlas Forge task flow:
+1. \`status\`
+2. \`search\` if context is needed
+3. \`start\` for implementation tasks
+4. implement and \`add\` when durable memory is warranted
+5. \`doctor\`
+6. \`close\`
+`;
+}
 
-Every task should follow:
-1. status/search
-2. start
-3. add memories at key milestones
-4. doctor
-5. close
-`,
-};
+function taskLifecycleBody() {
+    return `# task-lifecycle
 
-const QUICKSTART_TEMPLATES: Record<AgentKind, string> = {
-    claude: `# quickstart-claude
+Use Atlas Forge as a stateful policy:
+- Read-only analysis does not write memory or close tasks.
+- Implementation work should open a session before \`close\`.
+- \`doctor\` is the final quality gate before promotion.
+`;
+}
 
-Use MCP tools:
-\`af_status -> af_search -> af_start_task -> af_add_memory -> af_close_task\`.
-`,
-    gemini: `# quickstart-gemini
+function quickstartBody(agent: AgentKind) {
+    const line =
+        agent === 'claude'
+            ? '`af_status -> af_search -> af_start_task -> af_add_memory -> af_close_task`'
+            : '`status -> search -> start -> add -> doctor -> close`';
+    return `# quickstart-${agent}
 
-Use CLI JSON flow:
-\`status -> search -> start -> add -> doctor -> close\`.
-`,
-    codex: `# quickstart-codex
+Preferred ${agent} sequence:
+${line}
+`;
+}
 
-Use CLI JSON flow and keep memories concise and actionable.
-`,
-};
+function initScanCommandBody() {
+    return `# /atlas init-scan
+
+Run a read-only repo scan.
+
+## Expected behavior
+- summarize architecture, entrypoints, scripts, config files, and top risks
+- do not edit files
+- do not write durable memory
+- do not close a task
+`;
+}
+
+function checkAtlasCommandBody() {
+    return `# /atlas check-atlas
+
+Run Atlas Forge readiness checks.
+
+## Expected behavior
+- inspect \`verify --json\` and \`status --json\`
+- report agent profile, readiness score, and setup gaps
+- do not modify repository code
+`;
+}
+
+function taskStartCommandBody() {
+    return `# /atlas task-start
+
+Open or continue an Atlas Forge task.
+
+## Expected behavior
+- confirm readiness
+- search existing memory if needed
+- open a task session before implementation work
+`;
+}
+
+function bugfixCommandBody() {
+    return `# /atlas bugfix
+
+Use Atlas Forge bugfix policy.
+
+## Expected behavior
+- identify root cause first
+- patch the minimum safe change
+- record durable memory only if the lesson is reusable
+- run \`doctor\` before \`close\`
+`;
+}
+
+function featureCommandBody() {
+    return `# /atlas feature
+
+Use Atlas Forge feature policy.
+
+## Expected behavior
+- inspect current context
+- open a task session
+- record non-obvious decisions or patterns only
+- close the task with a concise outcome summary
+`;
+}
+
+function releaseCommandBody() {
+    return `# /atlas release
+
+Use Atlas Forge release policy.
+
+## Expected behavior
+- inspect readiness and current status first
+- keep release notes concise
+- verify before completion claims
+`;
+}
+
+function bridgeBody(bridgeId: string, bridgeTarget: string, summary: string) {
+    return `# ${bridgeId}
+
+This bridge composes ${DISPLAY_NAME} with \`${bridgeTarget}\`.
+
+## Type
+- composition policy, not executable code
+
+## Precedence
+1. ${DISPLAY_NAME} shared skill policy
+2. Agent launch file
+3. This bridge
+4. User task content
+
+## Summary
+${summary}
+
+## Invocation aliases
+- \`${INVOCATION_ALIASES[1]} + ${bridgeTarget}\`
+- \`${INVOCATION_ALIASES[0]}\`
+`;
+}
+
+function codexInstallBody() {
+    return `# Codex install patch for ${DISPLAY_NAME}
+
+Install target: Codex skill/config directory outside the repo.
+
+## Suggested alias
+- ${INVOCATION_ALIASES[1]}
+- ${INVOCATION_ALIASES[0]}
+
+## Suggested mapping
+- shared skill source: .atlasforge/skills/atlas-forge.md
+- bridge source: .atlasforge/bridges/atlas-forge+codex-kit.md
+
+This file is a patch/install template only. Apply it manually outside the repo.
+`;
+}
+
+function claudeInstallBody() {
+    return `{
+  "mcpServers": {
+    "atlas-forge": {
+      "command": "npx",
+      "args": ["-y", "@thaild12042003/atlas-forge", "atlas-forge-mcp"]
+    }
+  },
+  "_comment": "Generated by ${DISPLAY_NAME}. Merge this into your Claude Desktop config outside the repo."
+}
+`;
+}
+
+function geminiInstallBody() {
+    return `# Gemini command/install template for ${DISPLAY_NAME}
+
+Suggested aliases:
+- ${INVOCATION_ALIASES[1]}
+- ${INVOCATION_ALIASES[0]}
+
+Suggested startup instruction:
+Use .atlasforge/skills/atlas-forge.md as the shared workflow layer, then apply .atlasforge/bridges/atlas-forge+gemini-kit.md when the task calls for Gemini-specific behavior.
+`;
+}
+
+function contentHash(body: string): string {
+    return createHash('sha256').update(body, 'utf-8').digest('hex');
+}
+
+function renderManagedFile(artifact: DesiredArtifact): string {
+    const header: ManagedHeader = {
+        generated_by: GENERATED_BY,
+        artifact_id: artifact.id,
+        managed: true,
+        version: MANAGED_VERSION,
+        canonical_id: CANONICAL_ID,
+        display_name: DISPLAY_NAME,
+        invocation_aliases: artifact.invocationAliases ?? [],
+        content_sha256: contentHash(artifact.body),
+    };
+    return `---\n${yaml.stringify(header).trimEnd()}\n---\n\n${artifact.body}`;
+}
+
+function parseManagedFile(text: string): ParsedManagedFile {
+    const match = text.match(/^---\n([\s\S]*?)\n---\n\n?([\s\S]*)$/);
+    if (!match) {
+        return { header: null, body: text };
+    }
+    try {
+        const header = yaml.parse(match[1]) as ManagedHeader;
+        return { header, body: match[2] };
+    } catch {
+        return { header: null, body: text };
+    }
+}
+
+function isManagedHeader(header: ManagedHeader | null, artifact: DesiredArtifact): boolean {
+    return Boolean(
+        header &&
+            header.generated_by === GENERATED_BY &&
+            header.artifact_id === artifact.id &&
+            header.managed === true
+    );
+}
+
+function hasUserDrift(header: ManagedHeader | null, parsed: ParsedManagedFile): boolean {
+    if (!header) return false;
+    return header.content_sha256 !== contentHash(parsed.body);
+}
+
+function expectedAgents(requestedAgent: AgentSelection, appliedAgent: AgentKind): AgentKind[] {
+    return requestedAgent === 'all' ? [...ADAPTIVE_AGENTS] : [appliedAgent];
+}
+
+function desiredArtifactsFor(requestedAgent: AgentSelection, appliedAgent: AgentKind): DesiredArtifact[] {
+    const agents = expectedAgents(requestedAgent, appliedAgent);
+    const artifacts: DesiredArtifact[] = [
+        {
+            id: 'atlas-forge-root-shared',
+            kind: 'agent-guide',
+            category: 'entrypoints',
+            path: 'AGENTS.md',
+            agentTargets: [...ADAPTIVE_AGENTS],
+            invocationAliases: INVOCATION_ALIASES,
+            body: sharedRootBody(),
+            legacyContents: [sharedRootBody()],
+        },
+        {
+            id: 'atlas-forge-skill',
+            kind: 'shared-skill',
+            category: 'entrypoints',
+            path: '.atlasforge/skills/atlas-forge.md',
+            agentTargets: [...ADAPTIVE_AGENTS],
+            invocationAliases: INVOCATION_ALIASES,
+            body: sharedSkillBody(),
+        },
+        {
+            id: 'atlas-forge-skill-clean-code',
+            kind: 'support-skill',
+            category: 'entrypoints',
+            path: '.atlasforge/skills/clean-code.md',
+            agentTargets: [...ADAPTIVE_AGENTS],
+            body: cleanCodeBody(),
+            legacyContents: [cleanCodeBody()],
+        },
+        {
+            id: 'atlas-forge-skill-brainstorming',
+            kind: 'support-skill',
+            category: 'entrypoints',
+            path: '.atlasforge/skills/brainstorming.md',
+            agentTargets: [...ADAPTIVE_AGENTS],
+            body: brainstormingBody(),
+            legacyContents: [brainstormingBody()],
+        },
+        {
+            id: 'atlas-forge-skill-workflow',
+            kind: 'support-skill',
+            category: 'entrypoints',
+            path: '.atlasforge/skills/workflow.md',
+            agentTargets: [...ADAPTIVE_AGENTS],
+            body: workflowBody(),
+            legacyContents: [workflowBody()],
+        },
+        {
+            id: 'atlas-forge-workflow-task-lifecycle',
+            kind: 'workflow-template',
+            category: 'entrypoints',
+            path: '.atlasforge/workflows/task-lifecycle.md',
+            agentTargets: [...ADAPTIVE_AGENTS],
+            body: taskLifecycleBody(),
+            legacyContents: [taskLifecycleBody()],
+        },
+        {
+            id: 'atlas-forge-command-init-scan',
+            kind: 'command-template',
+            category: 'entrypoints',
+            path: '.atlasforge/commands/init-scan.md',
+            agentTargets: [...ADAPTIVE_AGENTS],
+            invocationAliases: ['/atlas init-scan'],
+            body: initScanCommandBody(),
+        },
+        {
+            id: 'atlas-forge-command-check-atlas',
+            kind: 'command-template',
+            category: 'entrypoints',
+            path: '.atlasforge/commands/check-atlas.md',
+            agentTargets: [...ADAPTIVE_AGENTS],
+            invocationAliases: ['/atlas check-atlas'],
+            body: checkAtlasCommandBody(),
+        },
+        {
+            id: 'atlas-forge-command-task-start',
+            kind: 'command-template',
+            category: 'entrypoints',
+            path: '.atlasforge/commands/task-start.md',
+            agentTargets: [...ADAPTIVE_AGENTS],
+            invocationAliases: ['/atlas task-start'],
+            body: taskStartCommandBody(),
+        },
+        {
+            id: 'atlas-forge-command-bugfix',
+            kind: 'command-template',
+            category: 'entrypoints',
+            path: '.atlasforge/commands/bugfix.md',
+            agentTargets: [...ADAPTIVE_AGENTS],
+            invocationAliases: ['/atlas bugfix'],
+            body: bugfixCommandBody(),
+        },
+        {
+            id: 'atlas-forge-command-feature',
+            kind: 'command-template',
+            category: 'entrypoints',
+            path: '.atlasforge/commands/feature.md',
+            agentTargets: [...ADAPTIVE_AGENTS],
+            invocationAliases: ['/atlas feature'],
+            body: featureCommandBody(),
+        },
+        {
+            id: 'atlas-forge-command-release',
+            kind: 'command-template',
+            category: 'entrypoints',
+            path: '.atlasforge/commands/release.md',
+            agentTargets: [...ADAPTIVE_AGENTS],
+            invocationAliases: ['/atlas release'],
+            body: releaseCommandBody(),
+        },
+        {
+            id: 'atlas-forge-bridge-superpower',
+            kind: 'bridge-template',
+            category: 'bridges',
+            path: '.atlasforge/bridges/atlas-forge+superpower.md',
+            agentTargets: [...ADAPTIVE_AGENTS],
+            invocationAliases: ['$Atlas Forge + superpower'],
+            body: bridgeBody('atlas-forge+superpower', 'superpower', 'Use Atlas Forge lifecycle and memory policy with superpower planning or debugging discipline.'),
+        },
+        {
+            id: 'atlas-forge-bridge-claude-kit',
+            kind: 'bridge-template',
+            category: 'bridges',
+            path: '.atlasforge/bridges/atlas-forge+claude-kit.md',
+            agentTargets: ['claude'],
+            invocationAliases: ['$Atlas Forge + claude-kit'],
+            body: bridgeBody('atlas-forge+claude-kit', 'claude-kit', 'Use Atlas Forge lifecycle with Claude-oriented MCP and prompt conventions.'),
+        },
+        {
+            id: 'atlas-forge-bridge-codex-kit',
+            kind: 'bridge-template',
+            category: 'bridges',
+            path: '.atlasforge/bridges/atlas-forge+codex-kit.md',
+            agentTargets: ['codex'],
+            invocationAliases: ['$Atlas Forge + codex-kit'],
+            body: bridgeBody('atlas-forge+codex-kit', 'codex-kit', 'Use Atlas Forge lifecycle with Codex CLI-first and JSON-first conventions.'),
+        },
+        {
+            id: 'atlas-forge-bridge-gemini-kit',
+            kind: 'bridge-template',
+            category: 'bridges',
+            path: '.atlasforge/bridges/atlas-forge+gemini-kit.md',
+            agentTargets: ['gemini'],
+            invocationAliases: ['$Atlas Forge + gemini-kit'],
+            body: bridgeBody('atlas-forge+gemini-kit', 'gemini-kit', 'Use Atlas Forge lifecycle with Gemini CLI-first and prompt-driven conventions.'),
+        },
+    ];
+
+    const rootGuides: Record<AgentKind, DesiredArtifact> = {
+        claude: {
+            id: 'atlas-forge-root-claude',
+            kind: 'agent-guide',
+            category: 'entrypoints',
+            path: 'CLAUDE.md',
+            agentTargets: ['claude'],
+            invocationAliases: INVOCATION_ALIASES,
+            body: claudeGuideBody(),
+            legacyContents: [claudeGuideBody()],
+        },
+        gemini: {
+            id: 'atlas-forge-root-gemini',
+            kind: 'agent-guide',
+            category: 'entrypoints',
+            path: 'GEMINI.md',
+            agentTargets: ['gemini'],
+            invocationAliases: INVOCATION_ALIASES,
+            body: geminiGuideBody(),
+            legacyContents: [geminiGuideBody()],
+        },
+        codex: {
+            id: 'atlas-forge-root-codex',
+            kind: 'agent-guide',
+            category: 'entrypoints',
+            path: 'CODEX.md',
+            agentTargets: ['codex'],
+            invocationAliases: INVOCATION_ALIASES,
+            body: codexGuideBody(),
+            legacyContents: [codexGuideBody()],
+        },
+    };
+
+    const quickstarts: Record<AgentKind, DesiredArtifact> = {
+        claude: {
+            id: 'atlas-forge-quickstart-claude',
+            kind: 'workflow-template',
+            category: 'entrypoints',
+            path: '.atlasforge/workflows/quickstart-claude.md',
+            agentTargets: ['claude'],
+            body: quickstartBody('claude'),
+            legacyContents: [quickstartBody('claude')],
+        },
+        gemini: {
+            id: 'atlas-forge-quickstart-gemini',
+            kind: 'workflow-template',
+            category: 'entrypoints',
+            path: '.atlasforge/workflows/quickstart-gemini.md',
+            agentTargets: ['gemini'],
+            body: quickstartBody('gemini'),
+            legacyContents: [quickstartBody('gemini')],
+        },
+        codex: {
+            id: 'atlas-forge-quickstart-codex',
+            kind: 'workflow-template',
+            category: 'entrypoints',
+            path: '.atlasforge/workflows/quickstart-codex.md',
+            agentTargets: ['codex'],
+            body: quickstartBody('codex'),
+            legacyContents: [quickstartBody('codex')],
+        },
+    };
+
+    const installs: Record<AgentKind, DesiredArtifact[]> = {
+        claude: [
+            {
+                id: 'atlas-forge-install-claude-config',
+                kind: 'external-patch',
+                category: 'external_patch_files',
+                path: '.atlasforge/install/claude/claude-desktop-config.patch.json',
+                agentTargets: ['claude'],
+                invocationAliases: INVOCATION_ALIASES,
+                body: claudeInstallBody(),
+            },
+        ],
+        gemini: [
+            {
+                id: 'atlas-forge-install-gemini-commands',
+                kind: 'external-patch',
+                category: 'external_patch_files',
+                path: '.atlasforge/install/gemini/gemini-commands.md',
+                agentTargets: ['gemini'],
+                invocationAliases: INVOCATION_ALIASES,
+                body: geminiInstallBody(),
+            },
+        ],
+        codex: [
+            {
+                id: 'atlas-forge-install-codex-skill',
+                kind: 'external-patch',
+                category: 'external_patch_files',
+                path: '.atlasforge/install/codex/atlas-forge-skill.md',
+                agentTargets: ['codex'],
+                invocationAliases: INVOCATION_ALIASES,
+                body: codexInstallBody(),
+            },
+        ],
+    };
+
+    for (const agent of agents) {
+        artifacts.push(rootGuides[agent]);
+        artifacts.push(quickstarts[agent]);
+        for (const install of installs[agent]) {
+            artifacts.push(install);
+        }
+    }
+
+    return artifacts;
+}
+
+function toMetadata(artifact: DesiredArtifact, status: EntryArtifactMetadata['status']): EntryArtifactMetadata {
+    return {
+        id: artifact.id,
+        kind: artifact.kind,
+        path: artifact.path,
+        agent_targets: artifact.agentTargets,
+        managed: true,
+        generated_by: GENERATED_BY,
+        status,
+        invocation_aliases: artifact.invocationAliases ?? [],
+    };
+}
+
+function categorize(
+    artifacts: EntryArtifactMetadata[],
+): Pick<InitBootstrapReport, 'entrypoints' | 'bridges' | 'external_patch_files'> {
+    return {
+        entrypoints: artifacts.filter((artifact) => artifact.kind !== 'bridge-template' && artifact.kind !== 'external-patch'),
+        bridges: artifacts.filter((artifact) => artifact.kind === 'bridge-template'),
+        external_patch_files: artifacts.filter((artifact) => artifact.kind === 'external-patch'),
+    };
+}
+
+function syncArtifact(root: string, artifact: DesiredArtifact, dryRun: boolean) {
+    const absolutePath = path.join(root, artifact.path);
+    const desired = renderManagedFile(artifact);
+    const existing = fs.existsSync(absolutePath) ? fs.readFileSync(absolutePath, 'utf-8') : null;
+
+    if (existing === null) {
+        if (!dryRun) {
+            fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+            fs.writeFileSync(absolutePath, desired, 'utf-8');
+        }
+        return { status: 'created' as const };
+    }
+
+    const parsed = parseManagedFile(existing);
+    if (isManagedHeader(parsed.header, artifact)) {
+        if (existing === desired) {
+            return { status: 'skipped' as const };
+        }
+        if (hasUserDrift(parsed.header, parsed)) {
+            return { status: 'drifted' as const };
+        }
+        if (!dryRun) {
+            fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+            fs.writeFileSync(absolutePath, desired, 'utf-8');
+        }
+        return { status: 'updated' as const };
+    }
+
+    if (artifact.legacyContents?.includes(existing)) {
+        if (!dryRun) {
+            fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+            fs.writeFileSync(absolutePath, desired, 'utf-8');
+        }
+        return { status: 'updated' as const };
+    }
+
+    return { status: 'skipped' as const };
+}
+
+function inspectArtifact(root: string, artifact: DesiredArtifact): EntryArtifactMetadata['status'] {
+    const absolutePath = path.join(root, artifact.path);
+    if (!fs.existsSync(absolutePath)) {
+        return 'missing';
+    }
+    const parsed = parseManagedFile(fs.readFileSync(absolutePath, 'utf-8'));
+    if (isManagedHeader(parsed.header, artifact) && hasUserDrift(parsed.header, parsed)) {
+        return 'drifted';
+    }
+    return 'present';
+}
+
+function requiredArtifactPaths(requestedAgent: AgentSelection, appliedAgent: AgentKind): string[] {
+    return desiredArtifactsFor(requestedAgent, appliedAgent)
+        .filter((artifact) => artifact.category !== 'external_patch_files' || artifact.agentTargets.includes(appliedAgent))
+        .map((artifact) => artifact.path);
+}
+
+function scanEntryLayer(root: string, requestedAgent: AgentSelection, appliedAgent: AgentKind) {
+    const metadata = desiredArtifactsFor(requestedAgent, appliedAgent).map((artifact) =>
+        toMetadata(artifact, inspectArtifact(root, artifact))
+    );
+    return categorize(metadata);
+}
+
+export function isAgentSelection(value: string): value is AgentSelection {
+    return AGENT_SELECTIONS.includes(value as AgentSelection);
+}
 
 type SignalMap = {
     claudeScore: number;
@@ -221,10 +841,10 @@ function collectSignals(root: string): SignalMap {
     const packageJson = safeRead(path.join(root, 'package.json'));
     if (packageJson) {
         try {
-            const parsed = JSON.parse(packageJson) as Record<string, any>;
+            const parsed = JSON.parse(packageJson) as Record<string, unknown>;
             const deps = {
-                ...(parsed.dependencies || {}),
-                ...(parsed.devDependencies || {}),
+                ...((parsed.dependencies as Record<string, string> | undefined) || {}),
+                ...((parsed.devDependencies as Record<string, string> | undefined) || {}),
             };
             if (typeof deps['@thaild12042003/atlas-forge'] === 'string') {
                 hasAtlasDependency = true;
@@ -243,13 +863,13 @@ function collectSignals(root: string): SignalMap {
     return { claudeScore, geminiScore, codexScore, hasMcpSignal, hasAtlasDependency, signals };
 }
 
-function confidenceFromScores(top: number, second: number): 'low' | 'medium' | 'high' {
+function confidenceFromScores(top: number, second: number): AgentConfidence {
     if (top <= 0) return 'low';
     if (top >= 5 && top - second >= 2) return 'high';
     return 'medium';
 }
 
-function detectByScores(scores: SignalMap): { detected_agent: AgentKind; confidence: 'low' | 'medium' | 'high' } {
+function detectByScores(scores: SignalMap): { detected_agent: AgentKind; confidence: AgentConfidence } {
     const ranked: Array<{ agent: AgentKind; score: number }> = [
         { agent: 'claude', score: scores.claudeScore },
         { agent: 'gemini', score: scores.geminiScore },
@@ -269,10 +889,10 @@ function detectByScores(scores: SignalMap): { detected_agent: AgentKind; confide
 export function detectAgentProfile(root: string, requestedAgent: AgentSelection = 'auto'): AgentProfile {
     const scoreMap = collectSignals(root);
     const detected = detectByScores(scoreMap);
-    const applied_agent = requestedAgent === 'auto' ? detected.detected_agent : requestedAgent;
-    const confidence = requestedAgent === 'auto' ? detected.confidence : 'high';
-
+    const applied_agent = requestedAgent === 'auto' || requestedAgent === 'all' ? detected.detected_agent : requestedAgent;
+    const confidence = requestedAgent === 'auto' || requestedAgent === 'all' ? detected.confidence : 'high';
     const signals = [...scoreMap.signals];
+
     if (requestedAgent !== 'auto') {
         signals.push(`requested:${requestedAgent}`);
     }
@@ -289,83 +909,35 @@ export function detectAgentProfile(root: string, requestedAgent: AgentSelection 
     };
 }
 
-type BootstrapOptions = {
-    requestedAgent?: AgentSelection;
-    dryRun?: boolean;
-};
-
-function trackDirectory(dirPath: string, reportPath: string, report: InitBootstrapReport, dryRun: boolean): void {
-    if (fs.existsSync(dirPath)) {
-        report.skipped.push(reportPath);
-        return;
-    }
-    if (!dryRun) {
-        fs.mkdirSync(dirPath, { recursive: true });
-    }
-    report.created.push(reportPath);
-}
-
-function writeIfMissing(absolutePath: string, content: string, report: InitBootstrapReport, reportPath: string, dryRun: boolean): void {
-    if (fs.existsSync(absolutePath)) {
-        report.skipped.push(reportPath);
-        return;
-    }
-    if (!dryRun) {
-        fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
-        fs.writeFileSync(absolutePath, content, 'utf-8');
-    }
-    report.created.push(reportPath);
-}
-
-function requiredArtifactPaths(appliedAgent: AgentKind): string[] {
-    const shared = SHARED_ROOT_GUIDANCE.path;
-    const rootGuidance = ROOT_GUIDANCE_TEMPLATES[appliedAgent].path;
-    const quickstart = `.atlasforge/workflows/quickstart-${appliedAgent}.md`;
-    return [
-        shared,
-        rootGuidance,
-        '.atlasforge/skills/clean-code.md',
-        '.atlasforge/skills/brainstorming.md',
-        '.atlasforge/skills/workflow.md',
-        '.atlasforge/workflows/task-lifecycle.md',
-        quickstart,
-    ];
-}
-
 export function bootstrapAdaptiveArtifacts(
     root: string,
-    options: BootstrapOptions = {}
+    options: BootstrapOptions = {},
 ): { agent_profile: AgentProfile; bootstrap: InitBootstrapReport } {
     const requestedAgent = options.requestedAgent ?? 'auto';
     const dryRun = Boolean(options.dryRun);
     const agentProfile = detectAgentProfile(root, requestedAgent);
-    const report: InitBootstrapReport = { created: [], skipped: [], dry_run: dryRun };
+    const report: InitBootstrapReport = {
+        created: [],
+        updated: [],
+        skipped: [],
+        drifted: [],
+        dry_run: dryRun,
+        entrypoints: [],
+        bridges: [],
+        external_patch_files: [],
+    };
 
-    writeIfMissing(path.join(root, SHARED_ROOT_GUIDANCE.path), SHARED_ROOT_GUIDANCE.content, report, SHARED_ROOT_GUIDANCE.path, dryRun);
-
-    const rootGuidance = ROOT_GUIDANCE_TEMPLATES[agentProfile.applied_agent];
-    writeIfMissing(path.join(root, rootGuidance.path), rootGuidance.content, report, rootGuidance.path, dryRun);
-
-    const skillsDir = path.join(root, '.atlasforge', 'skills');
-    trackDirectory(skillsDir, '.atlasforge/skills/', report, dryRun);
-    for (const [name, content] of Object.entries(SKILL_TEMPLATES)) {
-        writeIfMissing(path.join(skillsDir, name), content, report, `.atlasforge/skills/${name}`, dryRun);
+    const metadata: EntryArtifactMetadata[] = [];
+    for (const artifact of desiredArtifactsFor(requestedAgent, agentProfile.applied_agent)) {
+        const result = syncArtifact(root, artifact, dryRun);
+        report[result.status].push(artifact.path);
+        metadata.push(toMetadata(artifact, result.status));
     }
 
-    const workflowsDir = path.join(root, '.atlasforge', 'workflows');
-    trackDirectory(workflowsDir, '.atlasforge/workflows/', report, dryRun);
-    for (const [name, content] of Object.entries(WORKFLOW_TEMPLATES)) {
-        writeIfMissing(path.join(workflowsDir, name), content, report, `.atlasforge/workflows/${name}`, dryRun);
-    }
-
-    const quickstartName = `quickstart-${agentProfile.applied_agent}.md`;
-    writeIfMissing(
-        path.join(workflowsDir, quickstartName),
-        QUICKSTART_TEMPLATES[agentProfile.applied_agent],
-        report,
-        `.atlasforge/workflows/${quickstartName}`,
-        dryRun
-    );
+    const grouped = categorize(metadata);
+    report.entrypoints = grouped.entrypoints;
+    report.bridges = grouped.bridges;
+    report.external_patch_files = grouped.external_patch_files;
 
     return { agent_profile: agentProfile, bootstrap: report };
 }
@@ -378,21 +950,24 @@ export function evaluateAgentReadiness(
         configured_mode: DEFAULTS.promote_mode,
         effective_mode: DEFAULTS.promote_mode,
         migration_applied: false,
-    }
+    },
 ): AgentReadiness {
     const profile = detectAgentProfile(root, requestedAgent);
     const gaps: string[] = [];
 
-    let score = 0;
-    score += 2; // detection valid
+    let score = 2;
 
-    const required = requiredArtifactPaths(profile.applied_agent);
+    const required = requiredArtifactPaths(requestedAgent, profile.applied_agent);
     const present = required.filter((rel) => hasFile(root, rel)).length;
-    const artifactScore = Number(((present / required.length) * 4).toFixed(1));
-    score += artifactScore;
-    for (const rel of required) {
-        if (!hasFile(root, rel)) {
-            gaps.push(`missing artifact: ${rel}`);
+    score += Number(((present / Math.max(required.length, 1)) * 4).toFixed(1));
+
+    const entryLayer = scanEntryLayer(root, requestedAgent, profile.applied_agent);
+    for (const artifact of [...entryLayer.entrypoints, ...entryLayer.bridges, ...entryLayer.external_patch_files]) {
+        if (artifact.status === 'missing') {
+            gaps.push(`missing artifact: ${artifact.path}`);
+        }
+        if (artifact.status === 'drifted') {
+            gaps.push(`managed artifact drifted: ${artifact.path}`);
         }
     }
 
@@ -422,7 +997,7 @@ export function evaluateAgentReadiness(
     }
 
     const normalized = Math.max(0, Math.min(10, Number(score.toFixed(1))));
-    const level: 'basic' | 'good' | 'excellent' = normalized >= 8.5 ? 'excellent' : normalized >= 6 ? 'good' : 'basic';
+    const level: AgentReadiness['level'] = normalized >= 8.5 ? 'excellent' : normalized >= 6 ? 'good' : 'basic';
 
     return {
         agent_profile: profile,
@@ -430,4 +1005,9 @@ export function evaluateAgentReadiness(
         level,
         gaps,
     };
+}
+
+export function getEntryLayerMetadata(root: string, requestedAgent: AgentSelection = 'auto') {
+    const profile = detectAgentProfile(root, requestedAgent);
+    return scanEntryLayer(root, requestedAgent, profile.applied_agent);
 }

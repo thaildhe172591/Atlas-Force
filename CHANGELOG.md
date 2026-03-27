@@ -2,6 +2,13 @@
  
 All notable changes to this project are documented in this file.
 
+## 0.4.3 - 2026-03-27
+
+### Changed
+- Added a tag-driven release workflow so `npm version` + `git push --follow-tags` can publish to npmjs and GitHub Packages automatically.
+- Added automatic GitHub Release creation after successful package publication.
+- Synchronized package, CLI, MCP, and managed artifact versions to `0.4.3`.
+
 ## 0.4.2 - 2026-03-27
  
 ### Added

@@ -59,6 +59,9 @@ describe('CLI JSON smoke', () => {
         expect(initJson.agent_profile.applied_agent).toBe('codex');
         expect(Array.isArray(initJson.bootstrap.created)).toBe(true);
         expect(Array.isArray(initJson.bootstrap.skipped)).toBe(true);
+        expect(Array.isArray(initJson.bootstrap.entrypoints)).toBe(true);
+        expect(Array.isArray(initJson.bootstrap.bridges)).toBe(true);
+        expect(Array.isArray(initJson.bootstrap.external_patch_files)).toBe(true);
 
         const optimizeDryRun = await execCli(TEST_ROOT, ['optimize', '--agent', 'codex', '--dry-run', '--json']);
         expect(optimizeDryRun.code).toBe(0);
@@ -72,6 +75,9 @@ describe('CLI JSON smoke', () => {
         expect(verifyJson.ok).toBe(true);
         expect(verifyJson.agent_profile.applied_agent).toBe('codex');
         expect(typeof verifyJson.agent_readiness_score).toBe('number');
+        expect(Array.isArray(verifyJson.entrypoints)).toBe(true);
+        expect(Array.isArray(verifyJson.bridges)).toBe(true);
+        expect(Array.isArray(verifyJson.external_patch_files)).toBe(true);
 
         const start = await execCli(TEST_ROOT, ['start', 'Smoke task', '--json']);
         expect(start.code).toBe(0);
@@ -111,6 +117,9 @@ describe('CLI JSON smoke', () => {
         expect(statusJson.agent_profile.applied_agent).toBe('codex');
         expect(typeof statusJson.agent_readiness_score).toBe('number');
         expect(Array.isArray(statusJson.gaps)).toBe(true);
+        expect(Array.isArray(statusJson.entrypoints)).toBe(true);
+        expect(Array.isArray(statusJson.bridges)).toBe(true);
+        expect(Array.isArray(statusJson.external_patch_files)).toBe(true);
 
         const search = await execCli(TEST_ROOT, ['search', 'Smoke', '--json']);
         expect(search.code).toBe(0);
@@ -136,5 +145,18 @@ describe('CLI JSON smoke', () => {
         const payload = JSON.parse(bad.stdout);
         expect(payload.ok).toBe(false);
         expect(payload.error.type).toBe('validation');
+    });
+
+    it('supports init --agent all and generates all entry layer artifacts', async () => {
+        const init = await execCli(TEST_ROOT, ['init', '--agent', 'all', '--json']);
+        expect(init.code).toBe(0);
+        const initJson = JSON.parse(init.stdout);
+        expect(initJson.agent_profile.requested_agent).toBe('all');
+        expect(initJson.bootstrap.entrypoints.some((artifact: any) => artifact.path === 'CLAUDE.md')).toBe(true);
+        expect(initJson.bootstrap.entrypoints.some((artifact: any) => artifact.path === 'CODEX.md')).toBe(true);
+        expect(initJson.bootstrap.entrypoints.some((artifact: any) => artifact.path === 'GEMINI.md')).toBe(true);
+        expect(initJson.bootstrap.external_patch_files.some((artifact: any) => artifact.path.includes('/claude/'))).toBe(true);
+        expect(initJson.bootstrap.external_patch_files.some((artifact: any) => artifact.path.includes('/codex/'))).toBe(true);
+        expect(initJson.bootstrap.external_patch_files.some((artifact: any) => artifact.path.includes('/gemini/'))).toBe(true);
     });
 });

@@ -46,6 +46,7 @@ describe('Adaptive agent detection + readiness', () => {
         expect(status.agent_profile.applied_agent).toBe('codex');
         expect(status.agent_readiness_score).toBeGreaterThan(0);
         expect(['basic', 'good', 'excellent']).toContain(status.level);
+        expect(status.entrypoints.some((artifact) => artifact.id === 'atlas-forge-skill')).toBe(true);
     });
 
     it('reports gaps when required artifacts are missing', async () => {
@@ -53,5 +54,13 @@ describe('Adaptive agent detection + readiness', () => {
         fs.rmSync(path.join(testRoot, 'GEMINI.md'));
         const readiness = evaluateAgentReadiness(testRoot, 'gemini', true);
         expect(readiness.gaps.some((gap) => gap.includes('GEMINI.md'))).toBe(true);
+    });
+
+    it('keeps detection semantics in all mode while generating all artifacts', async () => {
+        const { forge } = await AtlasForge.initWithReport(testRoot, 'all');
+        const status = await forge.status('all');
+        expect(status.agent_profile.requested_agent).toBe('all');
+        expect(['claude', 'gemini', 'codex']).toContain(status.agent_profile.applied_agent);
+        expect(status.external_patch_files.length).toBeGreaterThanOrEqual(3);
     });
 });

@@ -5,8 +5,17 @@ import type { DoctorResult } from './diagnostics.js';
 import type { PromotionModeHealth } from './config.js';
 
 export type AgentKind = 'claude' | 'gemini' | 'codex';
-export type AgentSelection = AgentKind | 'auto';
+export type AgentSelection = AgentKind | 'auto' | 'all';
 export type AgentConfidence = 'low' | 'medium' | 'high';
+export type EntryArtifactKind =
+    | 'shared-skill'
+    | 'support-skill'
+    | 'agent-guide'
+    | 'command-template'
+    | 'workflow-template'
+    | 'bridge-template'
+    | 'external-patch';
+export type EntryArtifactStatus = 'created' | 'updated' | 'skipped' | 'drifted' | 'present' | 'missing';
 
 export interface AgentProfile {
     requested_agent: AgentSelection;
@@ -21,6 +30,23 @@ export interface AgentReadiness {
     agent_readiness_score: number;
     level: 'basic' | 'good' | 'excellent';
     gaps: string[];
+}
+
+export interface EntryArtifactMetadata {
+    id: string;
+    kind: EntryArtifactKind;
+    path: string;
+    agent_targets: AgentKind[];
+    managed: boolean;
+    generated_by: 'atlas-forge';
+    status: EntryArtifactStatus;
+    invocation_aliases: string[];
+}
+
+export interface EntryLayerMetadata {
+    entrypoints: EntryArtifactMetadata[];
+    bridges: EntryArtifactMetadata[];
+    external_patch_files: EntryArtifactMetadata[];
 }
 
 export interface AddMemoryOptions {
@@ -91,6 +117,9 @@ export interface StatusResult {
     agent_readiness_score: number;
     level: 'basic' | 'good' | 'excellent';
     gaps: string[];
+    entrypoints: EntryArtifactMetadata[];
+    bridges: EntryArtifactMetadata[];
+    external_patch_files: EntryArtifactMetadata[];
 }
 
 export interface PromoteOptions {
@@ -125,10 +154,15 @@ export interface VerifyResult {
     agent_readiness_score: number;
     level: 'basic' | 'good' | 'excellent';
     gaps: string[];
+    entrypoints: EntryArtifactMetadata[];
+    bridges: EntryArtifactMetadata[];
+    external_patch_files: EntryArtifactMetadata[];
 }
 
-export interface InitBootstrapReport {
+export interface InitBootstrapReport extends EntryLayerMetadata {
     created: string[];
+    updated: string[];
     skipped: string[];
+    drifted: string[];
     dry_run?: boolean;
 }

@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { AgentSelection, VerifyCheck, VerifyResult } from '../models/index.js';
-import { ConfigLoader, DEFAULTS, evaluateAgentReadiness } from '../config/index.js';
+import { ConfigLoader, DEFAULTS, evaluateAgentReadiness, getEntryLayerMetadata } from '../config/index.js';
 
 export async function verifyOperation(root: string, requestedAgent: AgentSelection = 'auto'): Promise<VerifyResult> {
     const checks: VerifyCheck[] = [];
@@ -83,6 +83,7 @@ export async function verifyOperation(root: string, requestedAgent: AgentSelecti
 
     const ok = !checks.some((c) => c.status === 'fail');
     const readiness = evaluateAgentReadiness(root, requestedAgent, ok, promotion);
+    const entryLayer = getEntryLayerMetadata(root, requestedAgent);
     return {
         ok,
         root,
@@ -92,5 +93,8 @@ export async function verifyOperation(root: string, requestedAgent: AgentSelecti
         agent_readiness_score: readiness.agent_readiness_score,
         level: readiness.level,
         gaps: readiness.gaps,
+        entrypoints: entryLayer.entrypoints,
+        bridges: entryLayer.bridges,
+        external_patch_files: entryLayer.external_patch_files,
     };
 }

@@ -1,4 +1,4 @@
-# Release Checklist (npm)
+# Release Checklist (npm + GitHub Packages)
 
 This checklist is the final gate before publishing Atlas Forge.
 
@@ -8,7 +8,7 @@ This checklist is the final gate before publishing Atlas Forge.
 - Minor (`x.Y.z`): backward-compatible features.
 - Major (`X.y.z`): breaking API/contract changes.
 
-Current release target: `0.3.1` (patch).
+Current release target: `0.4.3` (patch).
 
 ## 2) Required Pre-Release Commands
 
@@ -38,10 +38,23 @@ Expected:
   - MCP input schema
   - docs
 
-## 4) Publish Commands
+## 4) Version, Tag, and Publish Flow
 
 ```bash
 npm whoami
+npm version patch
+git push origin main --follow-tags
+```
+
+What happens next:
+- the git tag pushed by `npm version` triggers GitHub Actions
+- the workflow runs `lint`, `test`, `test:smoke`, and `build`
+- if green, it publishes to npmjs and GitHub Packages
+- it then creates or updates the GitHub Release for that tag
+
+Manual fallback:
+
+```bash
 npm publish --access public
 ```
 

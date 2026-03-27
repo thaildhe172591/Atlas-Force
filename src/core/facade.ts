@@ -3,7 +3,7 @@ import { FileSystemManager } from './store/fs.js';
 import { StagingStore } from './store/staging.js';
 import { CanonicalStore } from './store/canonical.js';
 import { SessionStore } from './store/sessions.js';
-import { bootstrapAdaptiveArtifacts, ConfigLoader, DEFAULTS, evaluateAgentReadiness } from './config/index.js';
+import { bootstrapAdaptiveArtifacts, ConfigLoader, DEFAULTS, evaluateAgentReadiness, getEntryLayerMetadata } from './config/index.js';
 
 import { addOperation } from './operations/add-memory.js';
 import { doctorOperation } from './operations/doctor.js';
@@ -92,7 +92,8 @@ export class AtlasForge {
         const hasConfig = this.fsm.existsSync('config.yaml');
         const verifyPassed = hasStructure && hasConfig;
         const readiness = evaluateAgentReadiness(this.root, requestedAgent, verifyPassed, this.promotion_health);
-        return statusOperation(this.staging, this.canonical, this.fsm, this.promotion_health, readiness);
+        const entryLayer = getEntryLayerMetadata(this.root, requestedAgent);
+        return statusOperation(this.staging, this.canonical, this.fsm, this.promotion_health, readiness, entryLayer);
     }
     async taskStart(o: TaskStartOptions) { return taskStartOperation(o, this.sessions, this.canonical, this.fsm); }
     async taskClose(o: TaskCloseOptions) { return taskCloseOperation(o, this.sessions, this.staging, this.canonical, this.fsm, this.config.promote_mode); }
