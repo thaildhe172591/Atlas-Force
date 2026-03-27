@@ -2,7 +2,7 @@ import js from '@eslint/js';
 import ts from 'typescript-eslint';
 
 export default ts.config(
-  { ignores: ['dist/**', 'node_modules/**', '.atlasforge/**', 'coverage/**', 'image/**'] },
+  { ignores: ['dist/**', 'node_modules/**', '.atlasforge/**', '.publish/**', 'coverage/**', 'image/**'] },
   js.configs.recommended,
   ...ts.configs.recommended,
   {

@@ -45,8 +45,11 @@ jobs:
           node-version: 20.x
           registry-url: 'https://npm.pkg.github.com'
 
+      - name: Prepare GitHub Packages manifest
+        run: node scripts/prepare-github-package.mjs
+
       - name: Publish to GitHub Packages
-        run: npm publish --access public
+        run: npm publish ./.publish/github-package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

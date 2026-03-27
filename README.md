@@ -59,6 +59,10 @@ npm install @thaild12042003/atlas-forge
 
 A GitHub Actions release workflow is included to publish the package to GitHub Packages so it appears in the repository's **Packages** tab.
 This does not replace npmjs publishing; the release workflow now publishes to both registries in one run, using `NPM_TOKEN` for npmjs and `GITHUB_TOKEN` for GitHub Packages.
+Published package names:
+- npmjs: `@thaild12042003/atlas-forge`
+- GitHub Packages: `@thaildhe172591/atlas-forge`
+
 Recommended release flow:
 
 ```bash

@@ -2,6 +2,13 @@
  
 All notable changes to this project are documented in this file.
 
+## 0.4.4 - 2026-03-27
+
+### Changed
+- Split release packaging so npmjs and GitHub Packages publish under different scoped names.
+- GitHub Packages now publishes from a generated manifest as `@thaildhe172591/atlas-forge`.
+- npmjs continues publishing as `@thaild12042003/atlas-forge`.
+
 ## 0.4.3 - 2026-03-27
 
 ### Changed

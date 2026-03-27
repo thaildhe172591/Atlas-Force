@@ -18,7 +18,7 @@ import { DEFAULTS } from './defaults.js';
 export const ADAPTIVE_AGENTS = ['claude', 'gemini', 'codex'] as const;
 const AGENT_SELECTIONS = ['auto', 'all', ...ADAPTIVE_AGENTS] as const;
 const GENERATED_BY = 'atlas-forge' as const;
-const MANAGED_VERSION = '0.4.3';
+const MANAGED_VERSION = '0.4.4';
 const CANONICAL_ID = 'atlas-forge';
 const DISPLAY_NAME = 'Atlas Forge';
 const INVOCATION_ALIASES = ['/atlas', '$Atlas Forge', 'atlas-forge'];

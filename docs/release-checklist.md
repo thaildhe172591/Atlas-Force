@@ -8,7 +8,7 @@ This checklist is the final gate before publishing Atlas Forge.
 - Minor (`x.Y.z`): backward-compatible features.
 - Major (`X.y.z`): breaking API/contract changes.
 
-Current release target: `0.4.3` (patch).
+Current release target: `0.4.4` (patch).
 
 ## 2) Required Pre-Release Commands
 
@@ -49,7 +49,9 @@ git push origin main --follow-tags
 What happens next:
 - the git tag pushed by `npm version` triggers GitHub Actions
 - the workflow runs `lint`, `test`, `test:smoke`, and `build`
-- if green, it publishes to npmjs and GitHub Packages
+- if green, it publishes:
+  - npmjs: `@thaild12042003/atlas-forge`
+  - GitHub Packages: `@thaildhe172591/atlas-forge`
 - it then creates or updates the GitHub Release for that tag
 
 Manual fallback:
