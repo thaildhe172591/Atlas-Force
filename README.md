@@ -162,6 +162,16 @@ All commands support `--json`.
 - Cursor: [docs/agents/cursor.md](docs/agents/cursor.md)
 - Antigravity: [docs/agents/antigravity.md](docs/agents/antigravity.md)
 
+## Star History
+
+<a href="https://www.star-history.com/?repos=thaildhe172591%2FAtlas-Force&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=thaildhe172591/Atlas-Force&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=thaildhe172591/Atlas-Force&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=thaildhe172591/Atlas-Force&type=date&legend=top-left" />
+ </picture>
+</a>
+
 ## License
 
 MIT © 2026 thaild12042003
